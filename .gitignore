@@ -1,0 +1,11 @@
+node_modules
+dist
+release
+.DS_Store
+*.log
+
+# Secrets / local env — never commit
+.env
+.env.*
+*.pem
+*.key
