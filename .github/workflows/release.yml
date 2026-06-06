@@ -1,0 +1,45 @@
+name: Release
+
+# Build and publish a macOS (Apple Silicon) release whenever a v* tag is pushed.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Needed for electron-builder to create/upload the GitHub Release with GITHUB_TOKEN.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # macos-14 is an Apple Silicon (arm64) runner with cmake + Xcode CLT preinstalled,
+    # which the whisper.cpp build needs.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build self-contained whisper-cli
+        run: npm run vendor:whisper
+
+      - name: Build Vue UI
+        run: npm run build
+
+      # The build is unsigned/ad-hoc (no Apple Developer ID), so the only secret
+      # required is the default GITHUB_TOKEN. Repo owner/name are taken from the
+      # Actions context so this works regardless of package.json's repository URL.
+      - name: Package & publish to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-builder --publish always \
+            -c.publish.provider=github \
+            -c.publish.owner=${{ github.repository_owner }} \
+            -c.publish.repo=${{ github.event.repository.name }}

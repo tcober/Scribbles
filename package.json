@@ -3,42 +3,65 @@
   "version": "0.1.0",
   "description": "Electron + Vue note-taking app that records audio, transcribes with Whisper, and formats with Gemma via Ollama — all locally.",
   "author": "Thomas Cober",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tcober/Note-Taker.git"
+  },
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n vite,electron -c blue,green \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
     "start": "electron .",
-    "pack": "vite build && electron-builder --dir",
-    "dist": "vite build && electron-builder"
+    "vendor:whisper": "bash scripts/vendor-whisper.sh",
+    "pack": "npm run vendor:whisper && vite build && electron-builder --dir",
+    "dist": "npm run vendor:whisper && vite build && electron-builder",
+    "release": "npm run vendor:whisper && vite build && electron-builder --publish always"
   },
   "build": {
     "appId": "com.localnotetaker.app",
     "productName": "Local Note Taker",
+    "artifactName": "LocalNoteTaker-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
+    "afterPack": "build/afterPack.cjs",
     "files": [
       "dist/**",
       "electron/**",
       "build/icon.png"
     ],
+    "extraResources": [
+      {
+        "from": "resources/whisper",
+        "to": "whisper"
+      }
+    ],
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity",
+      "identity": null,
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
       ]
     },
-    "win": {
-      "icon": "build/icon.png"
-    },
-    "linux": {
-      "icon": "build/icon.png",
-      "category": "Utility"
-    }
+    "publish": [
+      {
+        "provider": "github"
+      }
+    ]
   },
   "dependencies": {
     "marked": "^14.1.3",
