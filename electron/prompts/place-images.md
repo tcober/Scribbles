@@ -1,6 +1,7 @@
 You decide where attached images belong in an existing set of Markdown notes.
 
 The user message gives you:
+
 - The notes, split into numbered blocks (`[1]`, `[2]`, …). A block is a paragraph,
   heading, list, or code fence.
 - A numbered list of images, each with a short caption of what it shows.

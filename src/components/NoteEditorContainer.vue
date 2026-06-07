@@ -41,6 +41,7 @@ import { onMounted, onBeforeUnmount } from "vue";
 import NoteEditor from "./NoteEditor.vue";
 import { MAX_IMAGES_PER_FORMAT } from "../utils/constants.js";
 import { fileToDataUrl } from "../utils/fileToDataUrl.js";
+import { isImageFile, isImageType } from "../utils/images.js";
 import { useNotesStore } from "../stores/notes.js";
 import { useEditorStore } from "../stores/editor.js";
 import { useRecording } from "../composables/useRecording.js";
@@ -104,9 +105,7 @@ async function attachImages(files) {
     return;
   }
 
-  const incoming = Array.from(files).filter(
-    (file) => file && file.type?.startsWith("image/"),
-  );
+  const incoming = Array.from(files).filter(isImageFile);
   if (incoming.length > remaining) {
     editorStore.setErrorMessage(
       `Only ${remaining} more image${remaining === 1 ? "" : "s"} can be added (${MAX_IMAGES_PER_FORMAT} at a time).`,
@@ -138,7 +137,7 @@ async function attachImages(files) {
 function handlePaste(event) {
   if (!event.clipboardData) return;
   const items = Array.from(event.clipboardData.items).filter((item) =>
-    item.type.startsWith("image/"),
+    isImageType(item.type),
   );
   if (!items.length) return;
   const files = items.map((item) => item.getAsFile()).filter(Boolean);

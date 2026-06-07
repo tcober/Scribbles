@@ -17,7 +17,13 @@ export class FormatCancelled extends Error {
 // tool calls) as it arrives. Streaming is what makes the request abortable
 // mid-generation: `ollama.abort()` only cancels ongoing *streamed* requests, and
 // it lets us report live progress to the renderer via onProgress.
-export async function streamChat({ messages, tools, options, token, onProgress }) {
+export async function streamChat({
+  messages,
+  tools,
+  options,
+  token,
+  onProgress,
+}) {
   const iterator = await ollama.chat({
     model: OLLAMA_MODEL,
     messages,

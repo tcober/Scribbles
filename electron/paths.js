@@ -8,6 +8,21 @@ export function notesDir() {
   return join(app.getPath("userData"), "notes");
 }
 
+// Guard an id (note id, filename) before interpolating it into a file path, so a
+// crafted value can't escape its directory. Ids are UUIDs in normal use.
+export function assertSafeId(id) {
+  if (
+    typeof id !== "string" ||
+    id.length === 0 ||
+    id.includes("..") ||
+    id.includes("/") ||
+    id.includes("\\")
+  ) {
+    throw new Error(`Invalid id: ${id}`);
+  }
+  return id;
+}
+
 export function modelsDir() {
   return join(app.getPath("userData"), "models");
 }

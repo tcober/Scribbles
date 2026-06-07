@@ -48,7 +48,9 @@ export function useRecording() {
       });
       editorStore.setRecording();
     } catch (err) {
-      editorStore.recordingFailed(`Could not access microphone: ${err.message}`);
+      editorStore.recordingFailed(
+        `Could not access microphone: ${err.message}`,
+      );
     } finally {
       editorStore.setStarting(false);
     }

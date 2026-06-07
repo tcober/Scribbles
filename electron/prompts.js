@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const promptsDir = join(dirname(fileURLToPath(import.meta.url)), "prompts");
-const readPrompt = (file) => readFileSync(join(promptsDir, file), "utf8").trim();
+const readPrompt = (file) =>
+  readFileSync(join(promptsDir, file), "utf8").trim();
 
 // Loaded once at startup. The base note-taking rules are always present; the
 // context fragment is appended only when context is provided.

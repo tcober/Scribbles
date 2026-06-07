@@ -336,7 +336,8 @@ function onFilesPicked(event) {
   height: 7px;
   border-radius: 50%;
   background: var(--success-bright);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--success-bright), transparent 75%);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--success-bright), transparent 75%);
 }
 
 .format {

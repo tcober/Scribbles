@@ -29,7 +29,7 @@ export const useNotesStore = defineStore("notes", () => {
 
   async function selectNote(id) {
     activeNote.value = await window.api.loadNote(id);
-    pendingImages.value = [];
+    clearPendingImages();
     useEditorStore().clearFormatSnapshot();
   }
 
@@ -37,7 +37,7 @@ export const useNotesStore = defineStore("notes", () => {
     const created = await window.api.createNote(title);
     await refreshNotes();
     activeNote.value = created;
-    pendingImages.value = [];
+    clearPendingImages();
     useEditorStore().clearFormatSnapshot();
     return created;
   }
@@ -46,7 +46,7 @@ export const useNotesStore = defineStore("notes", () => {
     await window.api.deleteNote(id);
     if (activeNote.value?.id === id) {
       activeNote.value = null;
-      pendingImages.value = [];
+      clearPendingImages();
     }
     useEditorStore().clearFormatSnapshot();
     await refreshNotes();
@@ -91,16 +91,20 @@ export const useNotesStore = defineStore("notes", () => {
   }
 
   async function removePendingImage(filename) {
-    const index = pendingImages.value.findIndex(
+    if (!activeNote.value) return;
+    const exists = pendingImages.value.some(
       (image) => image.filename === filename,
     );
-    if (index === -1) return;
-    const image = pendingImages.value[index];
-    pendingImages.value.splice(index, 1);
+    if (!exists) return;
+    // Delete on disk first; only drop it from the list once that succeeds, so a
+    // failed delete leaves the UI consistent with what's actually stored.
     await window.api.deleteImage({
       noteId: activeNote.value.id,
-      filename: image.filename,
+      filename,
     });
+    pendingImages.value = pendingImages.value.filter(
+      (image) => image.filename !== filename,
+    );
   }
 
   function clearPendingImages() {

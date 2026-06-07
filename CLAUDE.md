@@ -1,5 +1,7 @@
 # Project conventions
 
+Generally write beautiful and easy to understand code. Do not sacrifice elegance and ease of reading just to keep things short. There may be rare exceptions. Make inline explanatory comments as short and clear as possible.
+
 ## Code style
 
 - **No single-letter variable names.** Use whole words that fit the case —
@@ -36,4 +38,23 @@ test via props/emits, stores test in isolation, pure logic tests directly.
   pipelines, caret sync) stays in composables (`src/composables/`) or the owning
   component — do not force it into a store.
 
-- **Tests** use Vitest + `@vue/test-utils` + `@pinia/testing` (`npm test`).
+- **Tests** use Vitest + `@vue/test-utils` (`npm test`).
+
+## Tooling
+
+Run these before committing; lint and format must be clean and tests green.
+
+- **Lint:** `npm run lint` (`npm run lint:fix` to autofix). ESLint flat config
+  in `eslint.config.js` machine-enforces the code-style rules above
+  (`id-length` for no single-letter names, `vue/block-order` for SFC order)
+  plus correctness. Renderer (browser globals) and Electron (Node globals) are
+  configured as separate scopes.
+
+- **Format:** `npm run format` (`npm run format:check` in CI). Prettier owns
+  formatting — double quotes, semicolons, trailing commas. `*.css` is
+  intentionally left in `.prettierignore` (hand-aligned variable comments).
+
+- **Tests:** `npm test` (`npm run test:watch`, `npm run test:coverage`).
+  `clearMocks: true` resets `window.api` stub call history between tests. Pure
+  helpers and stores are unit-tested directly; Electron `paths.js` mocks the
+  `electron` module since it isn't available under the test runner.

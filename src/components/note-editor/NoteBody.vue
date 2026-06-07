@@ -9,6 +9,8 @@
     spellcheck="true"
   />
   <div class="preview" :class="{ dim: isDragging }" v-else-if="note.markdown">
+    <!-- Renders the user's own local notes, parsed from Markdown by `marked`; no third-party/remote input. -->
+    <!-- eslint-disable-next-line vue/no-v-html -->
     <div class="markdown" v-html="rendered" />
     <div v-if="isRecording" class="caret"></div>
   </div>

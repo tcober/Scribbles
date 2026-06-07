@@ -1,0 +1,10 @@
+dist
+release
+node_modules
+resources
+.whisper-build
+coverage
+package-lock.json
+
+# Hand-aligned by author; Prettier would flatten comment columns and color-mix().
+*.css

@@ -1,11 +1,11 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
   plugins: [vue()],
-  base: './',
+  base: "./",
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
   },
   server: {
@@ -15,12 +15,15 @@ export default defineConfig({
   // Vitest reads this config natively. jsdom gives the dumb-component tests a
   // DOM; the setup file stubs window.api (no Electron preload under test).
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./vitest.setup.js'],
+    // Reset call history (not implementations) before each test, so assertions
+    // on how often a window.api stub was called don't see prior tests' calls.
+    clearMocks: true,
+    setupFiles: ["./vitest.setup.js"],
     // Our renderer tests plus the pure main-process helpers — but keep Vitest
     // out of vendored build dirs (e.g. the whisper.cpp checkout ships its own
     // *.spec.js).
-    include: ['src/**/*.spec.js', 'electron/**/*.spec.js'],
+    include: ["src/**/*.spec.js", "electron/**/*.spec.js"],
   },
 });

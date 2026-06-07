@@ -115,7 +115,9 @@ export const useEditorStore = defineStore("editor", () => {
 
     const full = note.markdown || "";
     const newRaw = full.slice(sessionStartIndex.value).trim();
-    const previouslyFormatted = full.slice(0, sessionStartIndex.value).trimEnd();
+    const previouslyFormatted = full
+      .slice(0, sessionStartIndex.value)
+      .trimEnd();
     const context = (note.context || "").trim();
 
     if (!newRaw) {
@@ -232,7 +234,10 @@ export const useEditorStore = defineStore("editor", () => {
     const snapshot = lastFormatSnapshot.value;
     if (!snapshot) return;
     const notesStore = useNotesStore();
-    if (!notesStore.activeNote || notesStore.activeNote.id !== snapshot.noteId) {
+    if (
+      !notesStore.activeNote ||
+      notesStore.activeNote.id !== snapshot.noteId
+    ) {
       lastFormatSnapshot.value = null;
       return;
     }

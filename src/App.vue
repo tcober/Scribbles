@@ -17,8 +17,8 @@
         class="warning"
       >
         Ollama is running but model
-        <code>{{ editorStore.llmStatus.model }}</code> is not installed. Pull it:
-        <code>ollama pull {{ editorStore.llmStatus.model }}</code
+        <code>{{ editorStore.llmStatus.model }}</code> is not installed. Pull
+        it: <code>ollama pull {{ editorStore.llmStatus.model }}</code
         >.
       </header>
 

@@ -11,10 +11,7 @@ import { APP_ICON } from "./config.js";
 import { ensureDirs } from "./paths.js";
 import { createWindow } from "./window.js";
 import { registerNoteHandlers } from "./ipc/notes.js";
-import {
-  registerImageHandlers,
-  registerImageProtocol,
-} from "./ipc/images.js";
+import { registerImageHandlers, registerImageProtocol } from "./ipc/images.js";
 import { registerTranscribeHandler } from "./ipc/transcribe.js";
 import { registerFormatHandlers } from "./ipc/format.js";
 import { registerPlaceImagesHandlers } from "./ipc/place-images.js";
@@ -63,7 +60,9 @@ app.whenReady().then(async () => {
   if (process.platform === "darwin") {
     try {
       await systemPreferences.askForMediaAccess("microphone");
-    } catch {}
+    } catch (err) {
+      console.warn("Microphone access request failed:", err);
+    }
   }
 
   await createWindow();

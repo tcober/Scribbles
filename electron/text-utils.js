@@ -101,10 +101,8 @@ export function insertImagesAtBlocks(markdown, blocks, items) {
 // stripped of brackets so they can't break the ![...](...) syntax.
 function imageLine(caption, url) {
   const safe =
-    (caption || "")
-      .replace(/\s+/g, " ")
-      .replace(/[[\]]/g, "")
-      .trim() || "image";
+    (caption || "").replace(/\s+/g, " ").replace(/[[\]]/g, "").trim() ||
+    "image";
   return `![${safe}](${url})`;
 }
 

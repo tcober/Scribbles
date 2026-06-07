@@ -44,4 +44,42 @@ describe("useNotesStore", () => {
     store.appendTranscript("ignored");
     expect(store.activeNote).toBeNull();
   });
+
+  it("removePendingImage deletes on disk before dropping it from the list", async () => {
+    window.api.deleteImage.mockResolvedValueOnce(undefined);
+    const store = useNotesStore();
+    store.activeNote = { id: "n1" };
+    store.pendingImages = [{ filename: "a.png" }, { filename: "b.png" }];
+
+    await store.removePendingImage("a.png");
+
+    expect(window.api.deleteImage).toHaveBeenCalledWith({
+      noteId: "n1",
+      filename: "a.png",
+    });
+    expect(store.pendingImages).toEqual([{ filename: "b.png" }]);
+  });
+
+  it("removePendingImage keeps the image listed when the delete fails", async () => {
+    window.api.deleteImage.mockRejectedValueOnce(new Error("disk error"));
+    const store = useNotesStore();
+    store.activeNote = { id: "n1" };
+    store.pendingImages = [{ filename: "a.png" }];
+
+    await expect(store.removePendingImage("a.png")).rejects.toThrow(
+      "disk error",
+    );
+    expect(store.pendingImages).toEqual([{ filename: "a.png" }]);
+  });
+
+  it("removePendingImage is a no-op for an unknown filename", async () => {
+    const store = useNotesStore();
+    store.activeNote = { id: "n1" };
+    store.pendingImages = [{ filename: "a.png" }];
+
+    await store.removePendingImage("missing.png");
+
+    expect(window.api.deleteImage).not.toHaveBeenCalled();
+    expect(store.pendingImages).toEqual([{ filename: "a.png" }]);
+  });
 });

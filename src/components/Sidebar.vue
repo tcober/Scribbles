@@ -2,7 +2,14 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <span class="brand">Notes</span>
-      <button class="new" :disabled="disabled" @click="emit('create')" title="New note">+ New</button>
+      <button
+        class="new"
+        :disabled="disabled"
+        @click="emit('create')"
+        title="New note"
+      >
+        + New
+      </button>
     </div>
 
     <div class="list">
@@ -13,7 +20,7 @@
         :class="{ active: note.id === activeId }"
         @click="!disabled && emit('select', note.id)"
       >
-        <div class="title">{{ note.title || 'Untitled note' }}</div>
+        <div class="title">{{ note.title || "Untitled note" }}</div>
         <div class="meta">
           <span>{{ formatDate(note.updatedAt) }}</span>
           <button
@@ -21,7 +28,9 @@
             :disabled="disabled"
             title="Delete note"
             @click.stop="emit('delete', note.id)"
-          >×</button>
+          >
+            ×
+          </button>
         </div>
       </div>
       <div v-if="!notes.length" class="empty">No notes yet</div>
@@ -37,15 +46,16 @@ defineProps({
   activeId: { type: String, default: null },
   disabled: { type: Boolean, default: false },
 });
-const emit = defineEmits(['select', 'create', 'delete', 'reveal']);
+const emit = defineEmits(["select", "create", "delete", "reveal"]);
 
 function formatDate(timestamp) {
-  if (!timestamp) return '';
+  if (!timestamp) return "";
   const date = new Date(timestamp);
   const today = new Date();
   const sameDay = date.toDateString() === today.toDateString();
-  if (sameDay) return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  if (sameDay)
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 </script>
 

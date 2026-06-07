@@ -3,17 +3,18 @@ import { join } from "node:path";
 import { promises as fs } from "node:fs";
 import crypto from "node:crypto";
 
-import { ensureDirs, notesDir } from "../paths.js";
+import { assertSafeId, ensureDirs, notesDir } from "../paths.js";
 
 export function registerNoteHandlers() {
   ipcMain.handle("notes:list", async () => {
     await ensureDirs();
-    const files = await fs.readdir(notesDir());
+    const dir = notesDir();
+    const files = await fs.readdir(dir);
     const notes = [];
     for (const file of files) {
       if (!file.endsWith(".json")) continue;
       try {
-        const raw = await fs.readFile(join(notesDir(), file), "utf8");
+        const raw = await fs.readFile(join(dir, file), "utf8");
         const note = JSON.parse(raw);
         notes.push({
           id: note.id,
@@ -32,6 +33,7 @@ export function registerNoteHandlers() {
   });
 
   ipcMain.handle("notes:load", async (_event, id) => {
+    assertSafeId(id);
     const raw = await fs.readFile(join(notesDir(), `${id}.json`), "utf8");
     return JSON.parse(raw);
   });
@@ -53,16 +55,26 @@ export function registerNoteHandlers() {
   });
 
   ipcMain.handle("notes:save", async (_event, note) => {
-    note.updatedAt = Date.now();
+    assertSafeId(note?.id);
+    // Don't mutate the caller's object; stamp the save time on a copy.
+    const saved = { ...note, updatedAt: Date.now() };
     await fs.writeFile(
-      join(notesDir(), `${note.id}.json`),
-      JSON.stringify(note, null, 2),
+      join(notesDir(), `${saved.id}.json`),
+      JSON.stringify(saved, null, 2),
     );
-    return note;
+    return saved;
   });
 
   ipcMain.handle("notes:delete", async (_event, id) => {
-    await fs.unlink(join(notesDir(), `${id}.json`)).catch(() => {});
+    assertSafeId(id);
+    try {
+      await fs.unlink(join(notesDir(), `${id}.json`));
+    } catch (err) {
+      // A missing file is fine (already gone); surface anything else.
+      if (err.code !== "ENOENT") {
+        console.warn(`notes:delete failed for ${id}:`, err);
+      }
+    }
     return true;
   });
 

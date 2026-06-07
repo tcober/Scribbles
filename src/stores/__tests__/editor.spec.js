@@ -13,7 +13,9 @@ describe("useEditorStore", () => {
     const notes = useNotesStore();
     const editor = useEditorStore();
     notes.activeNote = { id: "n1", markdown: "raw speech", context: "" };
-    notes.pendingImages = [{ filename: "a.png", url: "u", path: "/p", mime: "image/png" }];
+    notes.pendingImages = [
+      { filename: "a.png", url: "u", path: "/p", mime: "image/png" },
+    ];
     editor.sessionStartIndex = 0;
     window.api.formatNote.mockResolvedValueOnce("formatted notes");
 
@@ -34,7 +36,9 @@ describe("useEditorStore", () => {
     const notes = useNotesStore();
     const editor = useEditorStore();
     notes.activeNote = { id: "n1", markdown: "# A\n\nBody." };
-    notes.pendingImages = [{ filename: "a.png", url: "u", path: "/p", mime: "image/png" }];
+    notes.pendingImages = [
+      { filename: "a.png", url: "u", path: "/p", mime: "image/png" },
+    ];
     window.api.placeImages.mockResolvedValueOnce("# A\n\nBody.\n\n![x](u)");
 
     await editor.placeImages();
@@ -53,7 +57,9 @@ describe("useEditorStore", () => {
     const notes = useNotesStore();
     const editor = useEditorStore();
     notes.activeNote = { id: "n1", markdown: "# A\n\nBody." };
-    notes.pendingImages = [{ filename: "a.png", url: "u", path: "/p", mime: "image/png" }];
+    notes.pendingImages = [
+      { filename: "a.png", url: "u", path: "/p", mime: "image/png" },
+    ];
     window.api.placeImages.mockResolvedValueOnce("# A\n\nBody.\n\n![x](u)");
     await editor.placeImages();
 
@@ -67,7 +73,9 @@ describe("useEditorStore", () => {
     const notes = useNotesStore();
     const editor = useEditorStore();
     notes.activeNote = { id: "n1", markdown: "# A\n\nBody." };
-    notes.pendingImages = [{ filename: "a.png", url: "u", path: "/p", mime: "image/png" }];
+    notes.pendingImages = [
+      { filename: "a.png", url: "u", path: "/p", mime: "image/png" },
+    ];
     window.api.placeImages.mockResolvedValueOnce("# A\n\nBody.\n\n![x](u)");
     await editor.placeImages();
     expect(editor.canUndo).toBe(true);

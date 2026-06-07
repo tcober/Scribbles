@@ -3,11 +3,8 @@ import { promises as fs } from "node:fs";
 
 import { FormatCancelled, streamChat } from "../ollama.js";
 import { PLACE_IMAGES_SYSTEM_PROMPT } from "../prompts.js";
-import {
-  insertImagesAtBlocks,
-  splitBlocksWithOffsets,
-} from "../text-utils.js";
-import { beginRun, endRun } from "./active-run.js";
+import { insertImagesAtBlocks, splitBlocksWithOffsets } from "../text-utils.js";
+import { beginReportedRun, endRun } from "./active-run.js";
 import { describeImage } from "./image-describe.js";
 
 // Cap on how much of each block we show the placement model — enough to identify
@@ -26,17 +23,7 @@ async function handlePlaceImages(event, { markdown, images }) {
   const base = typeof markdown === "string" ? markdown : "";
   if (!Array.isArray(images) || images.length === 0) return base;
 
-  const token = beginRun();
-  const report = (stage, detail = "") => {
-    try {
-      event.sender.send("llm:format-progress", { stage, detail });
-    } catch {
-      // Window may have gone away mid-run; progress is best-effort.
-    }
-  };
-  const ensureLive = () => {
-    if (token.cancelled) throw new FormatCancelled();
-  };
+  const { token, report, ensureLive } = beginReportedRun(event);
 
   try {
     // Caption each image on its own (the local vision model can't reliably tell

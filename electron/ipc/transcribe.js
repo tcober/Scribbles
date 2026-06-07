@@ -35,7 +35,9 @@ export function registerTranscribeHandler() {
       typeof opts.carryover === "string"
         ? opts.carryover.replace(/\s+/g, " ").trim().slice(-CARRYOVER_CHARS)
         : "";
-    const prompt = carryover ? `${WHISPER_PROMPT} ${carryover}` : WHISPER_PROMPT;
+    const prompt = carryover
+      ? `${WHISPER_PROMPT} ${carryover}`
+      : WHISPER_PROMPT;
 
     try {
       await execFileP(
@@ -65,10 +67,12 @@ export function registerTranscribeHandler() {
         throw new Error(
           `Could not find the whisper-cli binary at "${binPath}". In development, ` +
             `run "npm run vendor:whisper"; otherwise install it with "brew install whisper-cpp".`,
+          { cause: err },
         );
       }
       throw new Error(
         `whisper-cli failed: ${err.stderr?.toString() || err.message}`,
+        { cause: err },
       );
     } finally {
       await fs.unlink(wavPath).catch(() => {});

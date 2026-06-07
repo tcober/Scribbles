@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import {
-  splitBlocksWithOffsets,
-  insertImagesAtBlocks,
-} from "../text-utils.js";
+import { splitBlocksWithOffsets, insertImagesAtBlocks } from "../text-utils.js";
 
 describe("splitBlocksWithOffsets", () => {
   it("splits on blank lines and records end offsets", () => {
@@ -17,9 +14,9 @@ describe("splitBlocksWithOffsets", () => {
     ]);
     // Each end offset points just past the block's last character.
     for (const block of blocks) {
-      expect(markdown.slice(block.endIndex - block.text.length, block.endIndex)).toBe(
-        block.text,
-      );
+      expect(
+        markdown.slice(block.endIndex - block.text.length, block.endIndex),
+      ).toBe(block.text);
     }
   });
 
@@ -79,9 +76,11 @@ describe("insertImagesAtBlocks", () => {
   });
 
   it("appends every image when notes are empty (no blocks)", () => {
-    const out = insertImagesAtBlocks("", [], [
-      { caption: "only", url: "u", after: 0 },
-    ]);
+    const out = insertImagesAtBlocks(
+      "",
+      [],
+      [{ caption: "only", url: "u", after: 0 }],
+    );
     expect(out).toBe("![only](u)");
   });
 

@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
 
 import { FORMAT_CHUNK_CHARS, OLLAMA_MODEL } from "../config.js";
-import { FormatCancelled, ollama, streamChat } from "../ollama.js";
+import { ollama, streamChat } from "../ollama.js";
 import { buildSystemPrompt } from "../prompts.js";
 import { chunkText, stripConversational } from "../text-utils.js";
 import {
@@ -10,7 +10,7 @@ import {
   formatPreSearchBlock,
   preSearchFromContext,
 } from "../web-search.js";
-import { beginRun, cancelActiveRun, endRun } from "./active-run.js";
+import { beginReportedRun, cancelActiveRun, endRun } from "./active-run.js";
 
 export function registerFormatHandlers() {
   // Cancel the in-flight format or image-placement run: flag the active token
@@ -41,19 +41,9 @@ async function handleFormat(event, { transcript, existing, context }) {
   const hasContext = typeof context === "string" && context.trim().length > 0;
   if (!hasTranscript) return existing || "";
 
-  // Cancellation token for this run + a helper to push progress updates to the
-  // renderer so the user sees Gemma is making headway during a slow format.
-  const token = beginRun();
-  const report = (stage, detail = "") => {
-    try {
-      event.sender.send("llm:format-progress", { stage, detail });
-    } catch {
-      // Window may have gone away mid-format; progress is best-effort.
-    }
-  };
-  const ensureLive = () => {
-    if (token.cancelled) throw new FormatCancelled();
-  };
+  // Cancellation token for this run plus the report/ensureLive helpers that push
+  // progress to the renderer and bail out if the user cancels mid-format.
+  const { token, report, ensureLive } = beginReportedRun(event);
 
   try {
     report("Preparing…");
