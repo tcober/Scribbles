@@ -13,6 +13,8 @@
       :rendered="rendered"
       :edit-mode="editMode"
       :is-recording="isRecording"
+      :is-transcribing="transcribing"
+      :is-starting="starting"
       :is-dragging="isDragging"
       @markdown="emit('markdown', $event)"
     />
@@ -44,6 +46,8 @@
       :show-context="showContext"
       :has-context="hasContext"
       :is-recording="isRecording"
+      :is-transcribing="transcribing"
+      :is-starting="starting"
       :is-formatting="isFormatting"
       :format-progress="formatProgress"
       @attach-images="emit('attach-images', $event)"
@@ -72,6 +76,8 @@ const props = defineProps({
   pendingImages: { type: Array, default: () => [] },
   maxImages: { type: Number, default: 0 },
   formatProgress: { type: Object, default: null },
+  transcribing: { type: Boolean, default: false },
+  starting: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([

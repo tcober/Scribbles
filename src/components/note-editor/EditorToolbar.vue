@@ -1,6 +1,9 @@
 <template>
   <footer class="footer">
-    <div class="status-pill" :class="status">
+    <div
+      class="status-pill"
+      :class="[status, { transcribing: showTranscribing }]"
+    >
       <span class="dot" />
       <div class="status-text">
         <span class="label">{{ statusLabel }}</span>
@@ -105,6 +108,8 @@ const props = defineProps({
   showContext: { type: Boolean, default: false },
   hasContext: { type: Boolean, default: false },
   isRecording: { type: Boolean, default: false },
+  isTranscribing: { type: Boolean, default: false },
+  isStarting: { type: Boolean, default: false },
   isFormatting: { type: Boolean, default: false },
   formatProgress: { type: Object, default: null },
 });
@@ -121,6 +126,7 @@ const emit = defineEmits([
 const fileInput = ref(null);
 
 const statusLabel = computed(() => {
+  if (props.isStarting) return "Starting…";
   switch (props.status) {
     case "recording":
       return "Listening…";
@@ -129,21 +135,36 @@ const statusLabel = computed(() => {
     case "error":
       return "Error";
     default:
-      return "Ready";
+      return props.isTranscribing ? "Transcribing…" : "Ready";
   }
 });
 
-// A tiny live snippet of what Gemma is currently producing, shown under the
-// status label so a slow format clearly looks like progress, not a hang.
-const progressDetail = computed(() =>
-  props.status === "formatting" ? props.formatProgress?.detail || "" : "",
+// Pulse the dot while a stopped recording's final chunk is still transcribing.
+const showTranscribing = computed(
+  () =>
+    props.isTranscribing &&
+    props.status !== "recording" &&
+    props.status !== "formatting",
 );
 
-const recordLabel = computed(() =>
-  props.isRecording ? "Stop listening" : "Start listening",
+// A tiny live snippet of what Gemma is currently producing, shown under the
+// status label so a slow format clearly looks like progress, not a hang. While
+// recording, surface "Transcribing…" when a chunk is in flight.
+const progressDetail = computed(() => {
+  if (props.status === "formatting") return props.formatProgress?.detail || "";
+  if (props.status === "recording" && props.isTranscribing)
+    return "Transcribing…";
+  return "";
+});
+
+const recordLabel = computed(() => {
+  if (props.isStarting) return "Starting…";
+  return props.isRecording ? "Stop listening" : "Start listening";
+});
+const recordDisabled = computed(() => props.isFormatting || props.isStarting);
+const formatDisabled = computed(
+  () => props.isRecording || props.isFormatting || props.isTranscribing,
 );
-const recordDisabled = computed(() => props.isFormatting);
-const formatDisabled = computed(() => props.isRecording || props.isFormatting);
 
 function openFilePicker() {
   fileInput.value?.click();
@@ -209,6 +230,10 @@ function onFilesPicked(event) {
 }
 .status-pill.formatting .dot {
   background: #f5c14c;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.status-pill.transcribing .dot {
+  background: #6aa0ff;
   animation: pulse 1.2s ease-in-out infinite;
 }
 .status-pill.error .dot {

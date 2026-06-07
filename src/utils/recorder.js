@@ -17,10 +17,15 @@ export class Recorder {
     this.sourceSampleRate = 0;
     this.onChunk = null;
     this.chunkThreshold = 0;
+    this.firstChunkThreshold = 0;
     this.seq = 0;
   }
 
-  async start({ onChunk, chunkSeconds = DEFAULT_CHUNK_SECONDS } = {}) {
+  async start({
+    onChunk,
+    chunkSeconds = DEFAULT_CHUNK_SECONDS,
+    firstChunkSeconds = chunkSeconds,
+  } = {}) {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -44,17 +49,27 @@ export class Recorder {
     this.processor = this.context.createScriptProcessor(4096, 1, 1);
     this.onChunk = onChunk || null;
     this.chunkThreshold = Math.floor(chunkSeconds * this.sourceSampleRate);
+    // Flush the first chunk sooner so the first words show up quickly — the
+    // single best "it's working" signal. Later chunks use the longer cadence,
+    // which gives whisper more context per call.
+    this.firstChunkThreshold = Math.floor(
+      firstChunkSeconds * this.sourceSampleRate,
+    );
     this.chunk = [];
     this.seq = 0;
 
     let pending = 0;
+    let flushCount = 0;
     this.processor.onaudioprocess = (event) => {
       const input = event.inputBuffer.getChannelData(0);
       this.chunk.push(new Float32Array(input));
       pending += input.length;
-      if (pending >= this.chunkThreshold) {
+      const threshold =
+        flushCount === 0 ? this.firstChunkThreshold : this.chunkThreshold;
+      if (pending >= threshold) {
         this.flushChunk();
         pending = 0;
+        flushCount++;
       }
     };
 

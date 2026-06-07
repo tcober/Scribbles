@@ -29,6 +29,13 @@ const __dirname = dirname(__filename);
 const OLLAMA_MODEL = process.env.SCRIBBLES_MODEL || "gemma4";
 const WHISPER_MODEL = process.env.SCRIBBLES_WHISPER_MODEL || "large-v3-turbo";
 
+// How long Ollama keeps the model resident after a request. Default matches
+// Ollama's own 5-minute default, so behaviour is unchanged unless overridden.
+// On a low-RAM machine keep it short ("30s", "0") so the model releases sooner;
+// raise it ("30m", or "-1" for never) only if you have headroom and want
+// consecutive formats to stay instant.
+const OLLAMA_KEEP_ALIVE = process.env.SCRIBBLES_OLLAMA_KEEP_ALIVE || "5m";
+
 // Resolve the whisper-cli binary. Priority:
 //   1. SCRIBBLES_WHISPER_BIN override (advanced users / custom builds)
 //   2. the self-contained binary bundled in the packaged app (Contents/Resources/whisper)
@@ -59,6 +66,14 @@ const WHISPER_PROMPT =
 // whisper truncates the prompt to its last tokens, so the most recent words win.
 const CARRYOVER_CHARS = 480;
 
+// Roughly how many characters of transcript to hand Gemma per formatting pass.
+// A long transcript is split into slices of about this size and merged into the
+// running notes one slice at a time, so each prompt (and Gemma's KV-cache memory)
+// stays bounded no matter how long the recording is. Smaller = lower peak memory
+// but more passes (slower, more seams); larger = fewer passes but heavier prompts.
+const FORMAT_CHUNK_CHARS =
+  Number(process.env.SCRIBBLES_FORMAT_CHUNK_CHARS) || 2500;
+
 const ollama = new Ollama({
   host: process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
 });
@@ -87,6 +102,7 @@ async function streamChat({ messages, tools, options, token, onProgress }) {
     messages,
     ...(tools ? { tools } : {}),
     options,
+    keep_alive: OLLAMA_KEEP_ALIVE,
     stream: true,
   });
 
@@ -563,113 +579,180 @@ ipcMain.handle(
         : [];
       ensureLive();
 
-      const parts = [];
-      if (hasContext) {
-        parts.push(
-          `Background context (for your interpretation only, do NOT echo into the notes):\n\n${context.trim()}`,
-        );
-        parts.push("---");
-      }
-      if (preSearchResults.length) {
-        parts.push(formatPreSearchBlock(preSearchResults));
-        parts.push("---");
-      }
-      if (hasImages) {
-        const lines = [
-          "Attached images (place each one where it fits best using ![caption](image:N)):",
-        ];
-        imageDescriptions.forEach((desc, index) => {
-          lines.push(
-            `[${index + 1}] ${desc || "image (no description available)"}`,
+      // One formatting pass: assemble the user message (context, optional web
+      // results, optional image descriptions, the running notes + the current
+      // transcript slice) and run the generation. Returns cleaned Markdown.
+      const runPass = async ({
+        existingNotes,
+        transcriptChunk,
+        includeImages,
+        includePreSearch,
+        includeWebTools,
+        progressStage,
+      }) => {
+        const parts = [];
+        if (hasContext) {
+          parts.push(
+            `Background context (for your interpretation only, do NOT echo into the notes):\n\n${context.trim()}`,
           );
-        });
-        parts.push(lines.join("\n"));
-        parts.push("---");
-      }
-      if (existing && existing.trim()) {
-        parts.push(`Existing notes:\n\n${existing}`);
-        parts.push("---");
-        parts.push(
-          hasTranscript
-            ? `New transcript to merge:\n\n${transcript}`
-            : "(No new transcript — just place the attached images appropriately in the existing notes.)",
-        );
-      } else {
-        parts.push(
-          hasTranscript
-            ? `Transcript:\n\n${transcript}`
-            : "(No transcript — produce a brief note framed around the attached images.)",
-        );
-      }
-      parts.push(
-        hasImages
-          ? `Return the complete updated Markdown notes with the ${images.length} attached image(s) inserted using the [image:N] placeholder syntax. Output ONLY the notes — no greeting, no commentary, no "here's your notes" preamble.`
-          : 'Return the complete updated Markdown notes. Output ONLY the notes — no greeting, no commentary, no "here\'s your notes" preamble.',
-      );
-
-      // The formatting pass is text-only: each image is already analyzed above and
-      // represented by its numbered description, so Gemma places by content rather
-      // than re-deriving it from a hard-to-disambiguate batch of raw images.
-      const messages = [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: parts.join("\n\n") },
-      ];
-
-      // Push a throttled live snippet of the latest generated text to the renderer
-      // so the user can see Gemma is actively writing, not stuck.
-      let lastSentLength = 0;
-      const onProgress = (full) => {
-        if (full.length - lastSentLength < 24) return;
-        lastSentLength = full.length;
-        const tail = full.replace(/\s+/g, " ").trim().slice(-90);
-        report("Writing your notes…", tail);
-      };
-
-      report("Reading your notes…");
-      let out = "";
-      const MAX_TURNS = 4;
-      for (let turn = 0; turn < MAX_TURNS; turn++) {
-        ensureLive();
-        const message = await streamChat({
-          messages,
-          tools: [WEB_SEARCH_TOOL],
-          options: { temperature: 0.2 },
-          token,
-          onProgress,
-        });
-
-        const toolCalls = message.tool_calls || [];
-
-        if (toolCalls.length === 0) {
-          out = message.content;
-          break;
+          parts.push("---");
         }
-
-        // Keep the assistant turn (with tool_calls) in history, then run each tool
-        // and append a tool-role message with the result.
-        messages.push(message);
-        report("Searching the web…");
-        for (const call of toolCalls) {
-          const name = call.function?.name;
-          const result = await executeToolCall(name, call.function?.arguments);
-          messages.push({ role: "tool", name, content: result });
+        if (includePreSearch && preSearchResults.length) {
+          parts.push(formatPreSearchBlock(preSearchResults));
+          parts.push("---");
         }
+        if (includeImages && hasImages) {
+          const lines = [
+            "Attached images (place each one where it fits best using ![caption](image:N)):",
+          ];
+          imageDescriptions.forEach((desc, index) => {
+            lines.push(
+              `[${index + 1}] ${desc || "image (no description available)"}`,
+            );
+          });
+          parts.push(lines.join("\n"));
+          parts.push("---");
+        }
+        const chunkHasText = transcriptChunk && transcriptChunk.trim();
+        if (existingNotes && existingNotes.trim()) {
+          parts.push(`Existing notes:\n\n${existingNotes}`);
+          parts.push("---");
+          parts.push(
+            chunkHasText
+              ? `New transcript to merge:\n\n${transcriptChunk}`
+              : "(No new transcript — just place the attached images appropriately in the existing notes.)",
+          );
+        } else {
+          parts.push(
+            chunkHasText
+              ? `Transcript:\n\n${transcriptChunk}`
+              : "(No transcript — produce a brief note framed around the attached images.)",
+          );
+        }
+        parts.push(
+          includeImages && hasImages
+            ? `Return the complete updated Markdown notes with the ${images.length} attached image(s) inserted using the [image:N] placeholder syntax. Output ONLY the notes — no greeting, no commentary, no "here's your notes" preamble.`
+            : 'Return the complete updated Markdown notes. Output ONLY the notes — no greeting, no commentary, no "here\'s your notes" preamble.',
+        );
 
-        // If this was the last allowed turn, force one more chat call so the model
-        // can synthesize the final notes from the tool results.
-        if (turn === MAX_TURNS - 1) {
+        // The formatting pass is text-only: each image is already analyzed above
+        // and represented by its numbered description, so Gemma places by content
+        // rather than re-deriving it from a hard-to-disambiguate batch of images.
+        const messages = [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: parts.join("\n\n") },
+        ];
+
+        // Throttled live snippet of the latest generated text so the user can see
+        // Gemma is actively writing, not stuck.
+        let lastSentLength = 0;
+        const onProgress = (full) => {
+          if (full.length - lastSentLength < 24) return;
+          lastSentLength = full.length;
+          const tail = full.replace(/\s+/g, " ").trim().slice(-90);
+          report(progressStage, tail);
+        };
+
+        // Intermediate slices (and any run with no context) never need the web
+        // tool, so a single streamed turn suffices — keeps the per-pass work lean.
+        if (!includeWebTools) {
           ensureLive();
-          report("Writing your notes…");
-          const finalMessage = await streamChat({
+          const message = await streamChat({
             messages,
             options: { temperature: 0.2 },
             token,
             onProgress,
           });
-          out = finalMessage.content;
+          return stripConversational(message.content);
         }
+
+        // With tools enabled (final slice + context asked for a lookup), allow a
+        // few turns so Gemma can call web_search and then synthesize.
+        let passOut = "";
+        const MAX_TURNS = 4;
+        for (let turn = 0; turn < MAX_TURNS; turn++) {
+          ensureLive();
+          const message = await streamChat({
+            messages,
+            tools: [WEB_SEARCH_TOOL],
+            options: { temperature: 0.2 },
+            token,
+            onProgress,
+          });
+
+          const toolCalls = message.tool_calls || [];
+          if (toolCalls.length === 0) {
+            passOut = message.content;
+            break;
+          }
+
+          // Keep the assistant turn (with tool_calls) in history, then run each
+          // tool and append a tool-role message with the result.
+          messages.push(message);
+          report("Searching the web…");
+          for (const call of toolCalls) {
+            const name = call.function?.name;
+            const result = await executeToolCall(
+              name,
+              call.function?.arguments,
+            );
+            messages.push({ role: "tool", name, content: result });
+          }
+
+          // On the last allowed turn, force one more chat call so the model can
+          // synthesize the final notes from the tool results.
+          if (turn === MAX_TURNS - 1) {
+            ensureLive();
+            report(progressStage);
+            const finalMessage = await streamChat({
+              messages,
+              options: { temperature: 0.2 },
+              token,
+              onProgress,
+            });
+            passOut = finalMessage.content;
+          }
+        }
+        return stripConversational(passOut);
+      };
+
+      // Feed Gemma the transcript a slice at a time, merging each slice into the
+      // running notes. The whole transcript still gets formatted — it is just
+      // assembled incrementally so each prompt (and Gemma's KV-cache memory) stays
+      // bounded no matter how long the recording is, instead of one giant prompt
+      // that can swap a low-RAM machine. Images and web results are applied once,
+      // on the final slice, over the complete notes.
+      const transcriptChunks = hasTranscript
+        ? chunkText(transcript, FORMAT_CHUNK_CHARS)
+        : [""];
+
+      let runningNotes = existing && existing.trim() ? existing.trim() : "";
+      let out = runningNotes;
+      for (
+        let chunkIndex = 0;
+        chunkIndex < transcriptChunks.length;
+        chunkIndex++
+      ) {
+        ensureLive();
+        const isFinalChunk = chunkIndex === transcriptChunks.length - 1;
+        const multiPass = transcriptChunks.length > 1;
+        report(
+          multiPass
+            ? `Formatting part ${chunkIndex + 1} of ${transcriptChunks.length}…`
+            : "Reading your notes…",
+        );
+        out = await runPass({
+          existingNotes: runningNotes,
+          transcriptChunk: transcriptChunks[chunkIndex],
+          includeImages: isFinalChunk && hasImages,
+          includePreSearch: isFinalChunk && preSearchResults.length > 0,
+          includeWebTools: isFinalChunk && hasContext,
+          progressStage: multiPass
+            ? `Writing part ${chunkIndex + 1} of ${transcriptChunks.length}…`
+            : "Writing your notes…",
+        });
+        runningNotes = out;
       }
-      out = stripConversational(out);
 
       if (hasImages) {
         // Resolve [image:N] / image:N placeholders to real note-image:// URLs.
@@ -903,6 +986,45 @@ function stripHtml(html) {
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Split a long transcript into ordered slices of roughly `targetChars`, breaking
+// on paragraph then sentence boundaries so each slice is self-contained. Used to
+// feed Gemma the transcript incrementally (merging each slice into the running
+// notes) instead of in one giant prompt. A run-on with no punctuation is hard-cut
+// as a last resort so a single slice never exceeds the target by much.
+function chunkText(text, targetChars) {
+  const trimmed = text.trim();
+  if (trimmed.length <= targetChars) return [trimmed];
+
+  // Break into the smallest natural units we can (sentences within paragraphs).
+  const units = [];
+  for (const paragraph of trimmed.split(/\n{2,}/)) {
+    for (const sentence of paragraph.split(/(?<=[.!?])\s+/)) {
+      const piece = sentence.trim();
+      if (!piece) continue;
+      if (piece.length <= targetChars) {
+        units.push(piece);
+      } else {
+        for (let index = 0; index < piece.length; index += targetChars) {
+          units.push(piece.slice(index, index + targetChars).trim());
+        }
+      }
+    }
+  }
+
+  // Greedily pack units back up to ~targetChars so we don't over-fragment.
+  const chunks = [];
+  let current = "";
+  for (const unit of units) {
+    if (current && current.length + unit.length + 1 > targetChars) {
+      chunks.push(current);
+      current = "";
+    }
+    current = current ? `${current} ${unit}` : unit;
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [trimmed];
 }
 
 // Strip conversational fluff Gemma sometimes prepends/appends despite being told

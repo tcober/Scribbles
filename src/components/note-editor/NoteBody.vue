@@ -12,6 +12,20 @@
     <div class="markdown" v-html="rendered" />
     <div v-if="isRecording" class="caret"></div>
   </div>
+  <div
+    class="preview listening"
+    :class="{ dim: isDragging }"
+    v-else-if="isRecording || isStarting || isTranscribing"
+  >
+    <p class="listening-line">
+      <span class="caret" />
+      <span>{{ isTranscribing ? "Transcribing…" : "Listening…" }}</span>
+    </p>
+    <p class="hint">
+      Your transcript will appear here as you speak — the first words take a few
+      seconds.
+    </p>
+  </div>
   <div class="preview empty" :class="{ dim: isDragging }" v-else>
     <p>
       This note is empty. Hit <strong>Start listening</strong> below, or drop an
@@ -32,6 +46,8 @@ const props = defineProps({
   rendered: { type: String, default: "" },
   editMode: { type: Boolean, default: false },
   isRecording: { type: Boolean, default: false },
+  isTranscribing: { type: Boolean, default: false },
+  isStarting: { type: Boolean, default: false },
   isDragging: { type: Boolean, default: false },
 });
 
@@ -115,6 +131,16 @@ function onInput(event) {
 }
 .preview.empty {
   color: #6e7689;
+}
+.preview.listening {
+  color: #8a93a6;
+}
+.listening-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #c9d3e6;
+  font-weight: 500;
 }
 /* Dimmed while a file is being dragged over the editor. */
 .preview.dim {

@@ -32,6 +32,8 @@
         :pending-images="pendingImages"
         :max-images="MAX_IMAGES_PER_FORMAT"
         :format-progress="formatProgress"
+        :transcribing="isTranscribing"
+        :starting="isStarting"
         @title="saveTitle"
         @markdown="saveMarkdown"
         @context="saveContext"
@@ -57,7 +59,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from "vue";
+import { onMounted, onBeforeUnmount, ref, computed } from "vue";
 import { marked } from "marked";
 import Sidebar from "./components/Sidebar.vue";
 import NoteEditor from "./components/NoteEditor.vue";
@@ -71,11 +73,48 @@ const llmStatus = ref(null);
 // Live progress for the current format: { stage, detail }. Null when idle.
 const formatProgress = ref(null);
 
+// Number of audio chunks currently being transcribed by whisper. Drives the
+// "Transcribing…" indicator so the user sees work is happening before the first
+// words land, and while a just-stopped recording finishes its final chunk.
+const pendingTranscriptions = ref(0);
+const isTranscribing = computed(() => pendingTranscriptions.value > 0);
+// True only while the mic/AudioContext is being acquired, so the record button
+// can react to the click immediately instead of waiting for getUserMedia.
+const isStarting = ref(false);
+
 // Images attached since the last format pass. Cleared after Gemma places them.
 const pendingImages = ref([]);
 
 // Cap how many images can ride along with a single format pass.
 const MAX_IMAGES_PER_FORMAT = 3;
+
+// Cap how much of the already-formatted note we re-send to Gemma each format.
+// Sending the whole note every time grows the prompt (and Gemma's KV-cache
+// memory) without bound as it gets longer — the main thing that pushes a low-RAM
+// Mac into swap mid-format. We keep everything before a clean markdown boundary
+// verbatim ("head") and only hand Gemma the recent tail as context, so it can
+// still merge new speech into the latest section seamlessly.
+const MAX_FORMAT_CONTEXT_CHARS = 2000;
+
+function splitFormatContext(formatted) {
+  if (formatted.length <= MAX_FORMAT_CONTEXT_CHARS) {
+    return { head: "", tail: formatted };
+  }
+  const target = formatted.length - MAX_FORMAT_CONTEXT_CHARS;
+  // Prefer to start the tail at a heading so Gemma gets a coherent section;
+  // fall back to a paragraph break, then a hard cut as a last resort.
+  let splitIndex = formatted.indexOf("\n#", target);
+  if (splitIndex !== -1) {
+    splitIndex += 1; // start the tail at the '#'
+  } else {
+    splitIndex = formatted.indexOf("\n\n", target);
+    splitIndex = splitIndex === -1 ? target : splitIndex + 2;
+  }
+  return {
+    head: formatted.slice(0, splitIndex).trimEnd(),
+    tail: formatted.slice(splitIndex).trimStart(),
+  };
+}
 
 const recorder = new Recorder();
 
@@ -83,6 +122,8 @@ let sessionStartIndex = 0;
 let transcribeChain = Promise.resolve();
 // Tail of the transcript so far, fed back into the next chunk as whisper context.
 let carryover = "";
+// Detaches the llm:format-progress IPC listener on unmount.
+let unsubscribeFormatProgress = null;
 
 const renderedMarkdown = computed(() =>
   activeNote.value ? marked.parse(activeNote.value.markdown || "") : "",
@@ -167,6 +208,7 @@ function appendToNote(text) {
 }
 
 function handleChunk(wav) {
+  pendingTranscriptions.value++;
   transcribeChain = transcribeChain.then(async () => {
     try {
       const text = await window.api.transcribe(wav, { carryover });
@@ -177,20 +219,30 @@ function handleChunk(wav) {
       await window.api.saveNote(plain(activeNote.value));
     } catch (err) {
       errorMessage.value = err.message || String(err);
+    } finally {
+      pendingTranscriptions.value--;
     }
   });
 }
 
 async function startRecording() {
   errorMessage.value = "";
+  isStarting.value = true;
   sessionStartIndex = (activeNote.value?.markdown || "").length;
   carryover = "";
   try {
-    await recorder.start({ onChunk: handleChunk, chunkSeconds: 15 });
+    await recorder.start({
+      onChunk: handleChunk,
+      chunkSeconds: 15,
+      // Get the first words on screen quickly; later chunks use the full cadence.
+      firstChunkSeconds: 5,
+    });
     status.value = "recording";
   } catch (err) {
     status.value = "error";
     errorMessage.value = `Could not access microphone: ${err.message}`;
+  } finally {
+    isStarting.value = false;
   }
 }
 
@@ -202,9 +254,14 @@ async function stopRecording() {
     errorMessage.value = `Recording failed: ${err.message}`;
     return;
   }
-  await transcribeChain;
-  transcribeChain = Promise.resolve();
+  // Leave the "recording" state right away so the button stops feeling stuck.
+  // The final chunk finishes transcribing in the background — isTranscribing
+  // keeps the footer showing "Transcribing…" until it lands.
   status.value = "idle";
+  const draining = transcribeChain;
+  draining.finally(() => {
+    if (transcribeChain === draining) transcribeChain = Promise.resolve();
+  });
 }
 
 // Run Gemma over the new raw transcript + any pending images, integrating with
@@ -214,8 +271,18 @@ async function runFormat() {
   if (!note) return;
   if (status.value !== "idle") return;
 
+  // Claim the formatting state synchronously, BEFORE any await, so a second
+  // trigger can't slip past the guard above while we wait below — two concurrent
+  // Gemma generations would mean two model loads and can swap the machine.
   status.value = "formatting";
   formatProgress.value = { stage: "Starting…", detail: "" };
+
+  // A just-stopped recording may still have a final chunk in flight; wait for it
+  // so the transcript Gemma sees is complete. Safe now that status is already
+  // "formatting" (whisper has already finished by the time we read note.markdown,
+  // so Gemma never runs concurrently with a transcription).
+  if (pendingTranscriptions.value > 0) await transcribeChain;
+
   const full = note.markdown || "";
   const newRaw = full.slice(sessionStartIndex).trim();
   const previouslyFormatted = full.slice(0, sessionStartIndex).trimEnd();
@@ -228,10 +295,16 @@ async function runFormat() {
     return;
   }
 
+  // Only re-send a bounded recent slice of the formatted note. Everything before
+  // the split stays verbatim and is stitched back on after Gemma returns, so the
+  // prompt size (and memory) stays flat no matter how long the note gets.
+  const { head: formattedHead, tail: formattedTail } =
+    splitFormatContext(previouslyFormatted);
+
   try {
     const updated = await window.api.formatNote({
       transcript: newRaw,
-      existing: previouslyFormatted,
+      existing: formattedTail,
       context,
       images: imgs.map(({ filename, url, path, mime }) => ({
         filename,
@@ -240,7 +313,7 @@ async function runFormat() {
         mime,
       })),
     });
-    note.markdown = updated;
+    note.markdown = formattedHead ? `${formattedHead}\n\n${updated}` : updated;
     // Context is per-format-run: clear it so the panel collapses and the next
     // run starts fresh.
     note.context = "";
@@ -335,26 +408,40 @@ async function revealNotesFolder() {
   }
 }
 
+// Paste a screenshot anywhere to attach it. Named (not inline) so the same
+// reference can be removed on unmount.
+function handlePaste(event) {
+  if (!event.clipboardData) return;
+  const items = Array.from(event.clipboardData.items).filter((item) =>
+    item.type.startsWith("image/"),
+  );
+  if (!items.length) return;
+  const files = items.map((item) => item.getAsFile()).filter(Boolean);
+  if (files.length) handleImageFiles(files);
+}
+
 onMounted(async () => {
   await refreshNotes();
   llmStatus.value = await window.api.checkLlm();
 
   // Reflect Gemma's live progress while a format runs. Ignore late updates that
   // arrive after we've already left the formatting state (e.g. post-cancel).
-  window.api.onFormatProgress((payload) => {
+  // Keep the unsubscribe so we can detach on unmount (and avoid duplicate
+  // listeners piling up across Vite HMR reloads during development).
+  unsubscribeFormatProgress = window.api.onFormatProgress((payload) => {
     if (status.value === "formatting") formatProgress.value = payload;
   });
 
   // Global paste handler — paste a screenshot anywhere to attach it.
-  window.addEventListener("paste", (event) => {
-    if (!event.clipboardData) return;
-    const items = Array.from(event.clipboardData.items).filter((item) =>
-      item.type.startsWith("image/"),
-    );
-    if (!items.length) return;
-    const files = items.map((item) => item.getAsFile()).filter(Boolean);
-    if (files.length) handleImageFiles(files);
-  });
+  window.addEventListener("paste", handlePaste);
+});
+
+onBeforeUnmount(() => {
+  unsubscribeFormatProgress?.();
+  unsubscribeFormatProgress = null;
+  window.removeEventListener("paste", handlePaste);
+  clearTimeout(markdownSaveTimer);
+  clearTimeout(contextSaveTimer);
 });
 </script>
 
