@@ -13,6 +13,8 @@
     "dev": "concurrently -k -n vite,electron -c blue,green \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
     "start": "electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "vendor:whisper": "bash scripts/vendor-whisper.sh",
     "pack": "npm run vendor:whisper && vite build && electron-builder --dir",
     "dist": "npm run vendor:whisper && vite build && electron-builder",
@@ -68,12 +70,17 @@
     "ollama": "^0.5.11"
   },
   "devDependencies": {
+    "@pinia/testing": "^1.0.3",
     "@vitejs/plugin-vue": "^5.1.4",
+    "@vue/test-utils": "^2.4.11",
     "concurrently": "^9.0.1",
     "cross-env": "^7.0.3",
     "electron": "^33.0.2",
     "electron-builder": "^26.8.1",
+    "jsdom": "^29.1.1",
+    "pinia": "^3.0.4",
     "vite": "^5.4.10",
+    "vitest": "^4.1.8",
     "vue": "^3.5.12",
     "wait-on": "^8.0.1"
   }
