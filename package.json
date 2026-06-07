@@ -1,6 +1,6 @@
 {
   "name": "scribbles",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Electron + Vue note-taking app that records audio, transcribes with Whisper, and formats with Gemma via Ollama — all locally.",
   "author": "Thomas Cober",
   "repository": {
