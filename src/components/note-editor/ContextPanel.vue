@@ -40,27 +40,27 @@ function onInput(event) {
   -webkit-app-region: no-drag;
   margin: 0 2rem 0.75rem;
   padding: 0.65rem 0.85rem 0.45rem;
-  background: rgba(94, 166, 107, 0.08);
-  border: 1px solid rgba(94, 166, 107, 0.35);
+  background: color-mix(in srgb, var(--success), transparent 92%);
+  border: 1px solid color-mix(in srgb, var(--success), transparent 65%);
   border-radius: 8px;
 }
 .context-label {
   font-size: 0.78rem;
-  color: #c4e5cb;
+  color: var(--success-text);
   margin-bottom: 0.45rem;
   font-weight: 500;
 }
 .context-hint {
-  color: #7a8f80;
+  color: var(--text-dim);
   font-weight: 400;
 }
 .context-input {
   width: 100%;
   box-sizing: border-box;
-  background: #0c0f15;
-  border: 1px solid #1c222e;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  color: #e8ecf4;
+  color: var(--text-bright);
   padding: 0.5rem 0.65rem;
   font-family: inherit;
   font-size: 0.85rem;
@@ -69,10 +69,10 @@ function onInput(event) {
   outline: none;
 }
 .context-input:focus {
-  border-color: #5ea66b;
+  border-color: var(--success);
 }
 .context-input::placeholder {
-  color: #5a6276;
+  color: var(--text-dim);
 }
 .context-input:disabled {
   opacity: 0.6;
@@ -84,7 +84,7 @@ function onInput(event) {
 }
 .context-arrow {
   font-size: 0.72rem;
-  color: #7a8f80;
+  color: var(--text-dim);
   letter-spacing: 0.02em;
 }
 </style>

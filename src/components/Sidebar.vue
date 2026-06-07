@@ -52,8 +52,8 @@ function formatDate(timestamp) {
 <style scoped>
 .sidebar {
   width: 260px;
-  background: #0c0f15;
-  border-right: 1px solid #1c222e;
+  background: var(--bg-deep);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   -webkit-app-region: drag;
@@ -67,20 +67,20 @@ function formatDate(timestamp) {
 }
 .brand {
   font-weight: 600;
-  color: #e8ecf4;
+  color: var(--text-bright);
 }
 .new {
   -webkit-app-region: no-drag;
-  background: #1f2632;
-  color: #c9d3e6;
-  border: 1px solid #2a3242;
+  background: var(--bg-hover);
+  color: var(--text);
+  border: 1px solid var(--bg-active);
   padding: 0.3rem 0.65rem;
   border-radius: 5px;
   cursor: pointer;
   font-size: 0.85rem;
 }
 .new:hover:not(:disabled) {
-  background: #2a3242;
+  background: var(--bg-active);
 }
 .new:disabled {
   opacity: 0.4;
@@ -99,13 +99,13 @@ function formatDate(timestamp) {
   margin-bottom: 2px;
 }
 .item:hover {
-  background: #161b25;
+  background: var(--bg-raised);
 }
 .item.active {
-  background: #1d2531;
+  background: var(--bg-raised);
 }
 .title {
-  color: #d5dbe8;
+  color: var(--text);
   font-size: 0.9rem;
   white-space: nowrap;
   overflow: hidden;
@@ -117,23 +117,23 @@ function formatDate(timestamp) {
   align-items: center;
   margin-top: 0.2rem;
   font-size: 0.75rem;
-  color: #6e7689;
+  color: var(--text-dim);
 }
 .trash {
   background: transparent;
   border: none;
-  color: #6e7689;
+  color: var(--text-dim);
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
   padding: 0 0.25rem;
 }
 .trash:hover:not(:disabled) {
-  color: #ff7676;
+  color: var(--danger);
 }
 .empty {
   text-align: center;
-  color: #5a6276;
+  color: var(--text-dim);
   font-size: 0.85rem;
   padding: 2rem 0;
 }
@@ -142,14 +142,14 @@ function formatDate(timestamp) {
   margin: 0.5rem;
   padding: 0.45rem;
   background: transparent;
-  color: #6e7689;
-  border: 1px solid #1c222e;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
   border-radius: 5px;
   font-size: 0.8rem;
   cursor: pointer;
 }
 .reveal:hover {
-  color: #c9d3e6;
-  background: #161b25;
+  color: var(--text);
+  background: var(--bg-raised);
 }
 </style>

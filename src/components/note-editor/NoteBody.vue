@@ -130,16 +130,16 @@ function onInput(event) {
   -webkit-app-region: no-drag;
 }
 .preview.empty {
-  color: #6e7689;
+  color: var(--text-dim);
 }
 .preview.listening {
-  color: #8a93a6;
+  color: var(--text-muted);
 }
 .listening-line {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #c9d3e6;
+  color: var(--text);
   font-weight: 500;
 }
 /* Dimmed while a file is being dragged over the editor. */
@@ -154,7 +154,7 @@ function onInput(event) {
   padding: 0.5rem 2rem 1rem;
   background: transparent;
   border: none;
-  color: #e8ecf4;
+  color: var(--text-bright);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.92rem;
   line-height: 1.55;
@@ -164,11 +164,11 @@ function onInput(event) {
   box-sizing: border-box;
 }
 .editor-textarea::placeholder {
-  color: #5a6276;
+  color: var(--text-dim);
 }
 .preview .hint {
   font-size: 0.85rem;
-  color: #5a6276;
+  color: var(--text-dim);
   margin-top: 0.3rem;
 }
 .caret {
@@ -176,7 +176,7 @@ function onInput(event) {
   width: 8px;
   height: 1.1rem;
   vertical-align: text-bottom;
-  background: #6aa0ff;
+  background: var(--accent);
   margin-left: 2px;
   animation: blink 1s steps(2, start) infinite;
 }

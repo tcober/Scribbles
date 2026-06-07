@@ -1,5 +1,54 @@
 :root {
   color-scheme: dark;
+
+  /* ============================================================
+     THEME  —  change these six and the whole app recolours.
+     Everything below is derived from them automatically, so you
+     don't need to touch the rest to retheme.
+     ============================================================ */
+  --bg:      #10131a;   /* app background          */
+  --text:    #d5dbe8;   /* main text               */
+  --accent:  #6aa0ff;   /* primary / links / focus */
+  --success: #5ea66b;   /* recording, context on   */
+  --danger:  #ff5d5d;   /* delete, errors, stop    */
+  --warning: #f5c14c;   /* processing, notices     */
+
+  /* ---- Surfaces: shades of --bg, lighter as they come forward ---- */
+  --bg-deep:     color-mix(in srgb, var(--bg), #000 28%);  /* sidebar, inputs, code */
+  --bg-raised:   color-mix(in srgb, var(--bg), #fff 5%);   /* panels, cards         */
+  --bg-hover:    color-mix(in srgb, var(--bg), #fff 9%);   /* hover state           */
+  --bg-active:   color-mix(in srgb, var(--bg), #fff 15%);  /* selected / pressed    */
+  --bg-disabled: color-mix(in srgb, var(--bg), #fff 28%);
+  --border:      color-mix(in srgb, var(--bg), #fff 8%);
+
+  /* ---- Text: --text faded toward bg as it gets quieter ---- */
+  --text-bright: color-mix(in srgb, var(--text), #fff 55%);     /* headings, strong */
+  --text-muted:  color-mix(in srgb, var(--text), var(--bg) 32%);
+  --text-dim:    color-mix(in srgb, var(--text), var(--bg) 62%); /* placeholders */
+
+  /* ---- Accent details, derived from --accent ---- */
+  --accent-strong:  color-mix(in srgb, var(--accent), #000 12%);    /* solid buttons */
+  --accent-text:    color-mix(in srgb, var(--accent), #fff 45%);    /* text on accent bg */
+  --accent-surface: color-mix(in srgb, var(--accent), var(--bg) 82%);
+
+  /* ---- Status details, derived from each status colour ---- */
+  --success-bright:  color-mix(in srgb, var(--success), #fff 18%);
+  --success-text:    color-mix(in srgb, var(--success), #fff 52%);
+  --success-surface: color-mix(in srgb, var(--success), var(--bg) 86%);
+  --success-border:  color-mix(in srgb, var(--success), var(--bg) 72%);
+
+  --danger-text:    color-mix(in srgb, var(--danger), #fff 50%);
+  --danger-strong:  color-mix(in srgb, var(--danger), #000 15%);    /* solid delete button */
+  --danger-hover:   color-mix(in srgb, var(--danger), #000 8%);
+  --danger-surface: color-mix(in srgb, var(--danger), var(--bg) 80%);
+  --danger-border:  color-mix(in srgb, var(--danger), var(--bg) 62%);
+
+  --warning-text:    color-mix(in srgb, var(--warning), #fff 35%);
+  --warning-surface: color-mix(in srgb, var(--warning), var(--bg) 82%);
+  --warning-border:  color-mix(in srgb, var(--warning), var(--bg) 62%);
+
+  /* ---- Misc ---- */
+  --overlay-scrim: rgba(0, 0, 0, 0.7);
 }
 
 * {
@@ -14,8 +63,8 @@ html, body, #app {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  background: #10131a;
-  color: #d5dbe8;
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -27,11 +76,11 @@ button {
 /* Markdown preview */
 .markdown {
   line-height: 1.6;
-  color: #d5dbe8;
+  color: var(--text);
   max-width: 740px;
 }
 .markdown h1, .markdown h2, .markdown h3, .markdown h4 {
-  color: #f1f4fb;
+  color: var(--text-bright);
   margin-top: 1.6em;
   margin-bottom: 0.5em;
   line-height: 1.25;
@@ -43,15 +92,15 @@ button {
 .markdown ul, .markdown ol { padding-left: 1.4em; margin: 0.4em 0; }
 .markdown li { margin: 0.2em 0; }
 .markdown code {
-  background: #1a1f2a;
+  background: var(--bg-raised);
   padding: 0.12em 0.35em;
   border-radius: 4px;
   font-size: 0.92em;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
 .markdown pre {
-  background: #0c0f15;
-  border: 1px solid #1c222e;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
   padding: 0.85em 1em;
   border-radius: 6px;
   overflow-x: auto;
@@ -61,30 +110,30 @@ button {
   padding: 0;
 }
 .markdown blockquote {
-  border-left: 3px solid #2a3242;
+  border-left: 3px solid var(--bg-active);
   margin: 0.6em 0;
   padding: 0.1em 1em;
-  color: #a0a9bd;
+  color: var(--text-muted);
 }
 .markdown a {
-  color: #6aa0ff;
+  color: var(--accent);
 }
 .markdown img {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
   margin: 0.8em 0;
-  border: 1px solid #1c222e;
+  border: 1px solid var(--border);
   display: block;
 }
 .markdown hr {
   border: none;
-  border-top: 1px solid #1c222e;
+  border-top: 1px solid var(--border);
   margin: 1.4em 0;
 }
 
 /* Scrollbars */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #1f2632; border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: #2a3242; }
+::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bg-active); }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -48,7 +48,7 @@ function onBlur() {
   border: none;
   font-size: 1.6rem;
   font-weight: 600;
-  color: #e8ecf4;
+  color: var(--text-bright);
   width: 100%;
   outline: none;
 }

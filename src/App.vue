@@ -63,14 +63,14 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 .warning {
-  background: #3a2418;
-  color: #f3c98b;
+  background: var(--warning-surface);
+  color: var(--warning-text);
   padding: 0.6rem 1rem;
-  border-bottom: 1px solid #5a3a22;
+  border-bottom: 1px solid var(--warning-border);
   font-size: 0.85rem;
 }
 .warning code {
-  background: #2a1810;
+  background: var(--warning-surface);
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
 }

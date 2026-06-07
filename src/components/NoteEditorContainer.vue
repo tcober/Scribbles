@@ -137,24 +137,24 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #8a93a6;
+  color: var(--text-muted);
   gap: 0.6rem;
 }
 .empty h1 {
-  color: #e8ecf4;
+  color: var(--text-bright);
   margin-bottom: 0.5rem;
 }
 .empty .primary {
   margin-top: 1.5rem;
   padding: 0.7rem 1.4rem;
   font-size: 1rem;
-  background: #4c8bf5;
+  background: var(--accent-strong);
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 .empty .primary:hover {
-  background: #6aa0ff;
+  background: var(--accent);
 }
 </style>

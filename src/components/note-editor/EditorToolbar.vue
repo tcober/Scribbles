@@ -186,8 +186,8 @@ function onFilesPicked(event) {
   align-items: center;
   justify-content: space-between;
   padding: 0.9rem 2rem;
-  background: linear-gradient(to top, #10131a 70%, rgba(16, 19, 26, 0));
-  border-top: 1px solid #1c222e;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  border-top: 1px solid var(--border);
 }
 .actions {
   display: flex;
@@ -198,7 +198,7 @@ function onFilesPicked(event) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #8a93a6;
+  color: var(--text-muted);
   font-size: 0.85rem;
   min-width: 0;
 }
@@ -206,7 +206,7 @@ function onFilesPicked(event) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4a5468;
+  background: var(--bg-disabled);
   flex-shrink: 0;
 }
 .status-text {
@@ -216,7 +216,7 @@ function onFilesPicked(event) {
   line-height: 1.25;
 }
 .status-text .detail {
-  color: #5f6a7e;
+  color: var(--text-dim);
   font-size: 0.72rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   max-width: 22rem;
@@ -225,19 +225,19 @@ function onFilesPicked(event) {
   white-space: nowrap;
 }
 .status-pill.recording .dot {
-  background: #ff5d5d;
+  background: var(--danger);
   animation: pulse 1.2s ease-in-out infinite;
 }
 .status-pill.formatting .dot {
-  background: #f5c14c;
+  background: var(--warning);
   animation: pulse 1.2s ease-in-out infinite;
 }
 .status-pill.transcribing .dot {
-  background: #6aa0ff;
+  background: var(--accent);
   animation: pulse 1.2s ease-in-out infinite;
 }
 .status-pill.error .dot {
-  background: #ff5d5d;
+  background: var(--danger);
 }
 @keyframes pulse {
   0%,
@@ -251,20 +251,20 @@ function onFilesPicked(event) {
 
 .ghost {
   background: transparent;
-  color: #c9d3e6;
-  border: 1px solid #2a3242;
+  color: var(--text);
+  border: 1px solid var(--bg-active);
   border-radius: 999px;
   padding: 0.55rem 1rem;
   font-size: 0.85rem;
   cursor: pointer;
 }
 .ghost:hover:not(:disabled) {
-  background: #1d2531;
+  background: var(--bg-raised);
 }
 .ghost.active {
-  background: #1f2a3d;
-  border-color: #4c8bf5;
-  color: #b8cffd;
+  background: var(--accent-surface);
+  border-color: var(--accent-strong);
+  color: var(--accent-text);
 }
 .ghost:disabled {
   opacity: 0.4;
@@ -277,19 +277,19 @@ function onFilesPicked(event) {
   align-items: stretch;
   border-radius: 999px;
   padding: 3px;
-  background: #1a2520;
-  border: 1px solid #2a3a30;
+  background: var(--success-surface);
+  border: 1px solid var(--success-border);
   gap: 0;
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
 }
 .gemma-group.has-context {
-  background: rgba(94, 166, 107, 0.16);
-  border-color: rgba(94, 166, 107, 0.6);
+  background: color-mix(in srgb, var(--success), transparent 84%);
+  border-color: color-mix(in srgb, var(--success), transparent 40%);
 }
 .gemma-group.open {
-  border-color: rgba(94, 166, 107, 0.85);
+  border-color: color-mix(in srgb, var(--success), transparent 15%);
 }
 
 .context-toggle {
@@ -297,7 +297,7 @@ function onFilesPicked(event) {
   align-items: center;
   gap: 0.35rem;
   background: transparent;
-  color: #b6c9bc;
+  color: var(--success-text);
   border: none;
   border-radius: 999px;
   padding: 0.4rem 0.85rem;
@@ -306,13 +306,13 @@ function onFilesPicked(event) {
   white-space: nowrap;
 }
 .context-toggle:hover:not(:disabled) {
-  background: rgba(94, 166, 107, 0.18);
-  color: #d9ecdf;
+  background: color-mix(in srgb, var(--success), transparent 82%);
+  color: var(--success-text);
 }
 .context-toggle.active,
 .context-toggle.filled {
-  background: rgba(94, 166, 107, 0.22);
-  color: #d9ecdf;
+  background: color-mix(in srgb, var(--success), transparent 78%);
+  color: var(--success-text);
 }
 .context-toggle:disabled {
   opacity: 0.45;
@@ -323,12 +323,12 @@ function onFilesPicked(event) {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #6fc07d;
-  box-shadow: 0 0 0 2px rgba(111, 192, 125, 0.25);
+  background: var(--success-bright);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--success-bright), transparent 75%);
 }
 
 .format {
-  background: #5ea66b;
+  background: var(--success);
   color: white;
   border: none;
   border-radius: 999px;
@@ -338,7 +338,7 @@ function onFilesPicked(event) {
   cursor: pointer;
 }
 .format:hover:not(:disabled) {
-  background: #6fc07d;
+  background: var(--success-bright);
 }
 .format:disabled {
   opacity: 0.5;
@@ -350,9 +350,9 @@ function onFilesPicked(event) {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  background: rgba(217, 72, 72, 0.16);
-  color: #f0a3a3;
-  border: 1px solid rgba(217, 72, 72, 0.55);
+  background: color-mix(in srgb, var(--danger), transparent 84%);
+  color: var(--danger-text);
+  border: 1px solid color-mix(in srgb, var(--danger), transparent 45%);
   border-radius: 999px;
   padding: 0.55rem 1.1rem;
   font-size: 0.85rem;
@@ -361,15 +361,15 @@ function onFilesPicked(event) {
   white-space: nowrap;
 }
 .cancel:hover {
-  background: rgba(217, 72, 72, 0.28);
-  color: #ffc0c0;
+  background: color-mix(in srgb, var(--danger), transparent 72%);
+  color: var(--danger-text);
 }
 .spinner {
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  border: 2px solid rgba(240, 163, 163, 0.35);
-  border-top-color: #f0a3a3;
+  border: 2px solid color-mix(in srgb, var(--danger), transparent 65%);
+  border-top-color: var(--danger-text);
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin {
@@ -379,7 +379,7 @@ function onFilesPicked(event) {
 }
 
 .record {
-  background: #4c8bf5;
+  background: var(--accent-strong);
   color: white;
   border: none;
   border-radius: 999px;
@@ -392,17 +392,17 @@ function onFilesPicked(event) {
   gap: 0.5rem;
 }
 .record:hover:not(:disabled) {
-  background: #6aa0ff;
+  background: var(--accent);
 }
 .record:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 .record.recording {
-  background: #d94848;
+  background: var(--danger-strong);
 }
 .record.recording:hover {
-  background: #e76060;
+  background: var(--danger-hover);
 }
 .rec-dot {
   width: 10px;

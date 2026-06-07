@@ -171,29 +171,29 @@ function onDrop(event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(74, 139, 245, 0.08);
-  border: 2px dashed #4c8bf5;
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+  border: 2px dashed var(--accent-strong);
   border-radius: 12px;
   margin: 1rem;
   z-index: 5;
 }
 .drop-msg {
-  color: #6aa0ff;
+  color: var(--accent);
   font-size: 1.05rem;
   font-weight: 500;
-  background: #10131a;
+  background: var(--bg);
   padding: 0.6rem 1.2rem;
   border-radius: 8px;
 }
 
 .error {
   -webkit-app-region: no-drag;
-  background: #3a1818;
-  color: #ff9b9b;
+  background: var(--danger-surface);
+  color: var(--danger-text);
   padding: 0.6rem 1rem;
   margin: 0 2rem;
   border-radius: 6px;
-  border: 1px solid #5a2222;
+  border: 1px solid var(--danger-border);
   font-size: 0.85rem;
 }
 

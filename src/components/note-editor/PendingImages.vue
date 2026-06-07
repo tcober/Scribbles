@@ -36,13 +36,13 @@ const emit = defineEmits(["remove"]);
   -webkit-app-region: no-drag;
   margin: 0 2rem 0.75rem;
   padding: 0.6rem 0.75rem;
-  background: #161d27;
-  border: 1px solid #1f2632;
+  background: var(--bg-raised);
+  border: 1px solid var(--bg-hover);
   border-radius: 8px;
 }
 .pending-label {
   font-size: 0.75rem;
-  color: #8a93a6;
+  color: var(--text-muted);
   margin-bottom: 0.45rem;
 }
 .thumbs {
@@ -56,8 +56,8 @@ const emit = defineEmits(["remove"]);
   height: 64px;
   border-radius: 6px;
   overflow: hidden;
-  background: #0c0f15;
-  border: 1px solid #1c222e;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
 }
 .thumb img {
   width: 100%;
@@ -72,7 +72,7 @@ const emit = defineEmits(["remove"]);
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-scrim);
   color: white;
   border: none;
   cursor: pointer;
@@ -81,7 +81,7 @@ const emit = defineEmits(["remove"]);
   padding: 0;
 }
 .thumb-remove:hover {
-  background: #d94848;
+  background: var(--danger-strong);
 }
 
 .fade-enter-active,
