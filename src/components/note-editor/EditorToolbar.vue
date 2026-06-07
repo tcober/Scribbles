@@ -1,3 +1,5 @@
+<!-- Footer toolbar: status pill plus the attach / undo / edit / context /
+     format / record controls. Props in, events out. -->
 <template>
   <footer class="footer">
     <div

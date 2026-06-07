@@ -1,3 +1,5 @@
+// Creates the single app window: frameless-inset chrome, the preload bridge, and
+// loading the Vite dev server or the built bundle depending on environment.
 import { BrowserWindow, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

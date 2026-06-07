@@ -1,3 +1,6 @@
+// IPC handlers for the Gemma text pipeline: format/merge a transcript into the
+// notes (slice by slice, with optional web search), cancel a run, and check that
+// Ollama + the model are available. Image placement lives in place-images.js.
 import { ipcMain } from "electron";
 
 import { FORMAT_CHUNK_CHARS, OLLAMA_MODEL } from "../config.js";
@@ -33,9 +36,7 @@ export function registerFormatHandlers() {
   });
 }
 
-// Format/merge a transcript into existing markdown via Gemma. Image placement is
-// a separate pipeline (see place-images.js) — this pass is text-only and never
-// touches attached images.
+// Format/merge a transcript into existing markdown via Gemma (text-only).
 async function handleFormat(event, { transcript, existing, context }) {
   const hasTranscript = transcript && transcript.trim();
   const hasContext = typeof context === "string" && context.trim().length > 0;
@@ -50,9 +51,8 @@ async function handleFormat(event, { transcript, existing, context }) {
 
     const systemPrompt = buildSystemPrompt({ hasContext });
 
-    // Deterministic pre-search: if the context explicitly asks Gemma to look
-    // something up, run the searches now so the results are in the prompt
-    // regardless of whether the local model template supports tool calling.
+    // If the context asks Gemma to look something up, run the searches now so the
+    // results are in the prompt even if the model template can't call tools.
     if (hasContext) report("Reading your context…");
     const preSearchResults = hasContext
       ? await preSearchFromContext(context)
@@ -166,12 +166,9 @@ async function handleFormat(event, { transcript, existing, context }) {
       return stripConversational(passOut);
     };
 
-    // Feed Gemma the transcript a slice at a time, merging each slice into the
-    // running notes. The whole transcript still gets formatted — it is just
-    // assembled incrementally so each prompt (and Gemma's KV-cache memory) stays
-    // bounded no matter how long the recording is, instead of one giant prompt
-    // that can swap a low-RAM machine. Web results are applied once, on the final
-    // slice, over the complete notes.
+    // Format the transcript a slice at a time, merging each into the running
+    // notes, so each prompt (and the KV-cache) stays bounded no matter how long
+    // the recording is. Web results are applied once, on the final slice.
     const transcriptChunks = chunkText(transcript, FORMAT_CHUNK_CHARS);
 
     let runningNotes = existing && existing.trim() ? existing.trim() : "";

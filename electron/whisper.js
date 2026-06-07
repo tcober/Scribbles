@@ -1,3 +1,5 @@
+// Locates the whisper-cli binary and ensures the model file is present,
+// downloading it from Hugging Face into userData/models on first use.
 import { app } from "electron";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

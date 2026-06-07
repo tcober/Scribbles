@@ -1,3 +1,5 @@
+<!-- Root shell: lays out the sidebar + editor, shows the Ollama/model warning
+     banner, and kicks off the initial data load and progress subscription. -->
 <template>
   <div class="app">
     <SidebarContainer />

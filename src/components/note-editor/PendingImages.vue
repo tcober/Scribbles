@@ -1,3 +1,4 @@
+<!-- Thumbnail strip of images staged for the next placement pass; emits remove. -->
 <template>
   <transition name="fade">
     <div v-if="images.length" class="pending">

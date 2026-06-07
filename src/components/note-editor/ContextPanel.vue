@@ -1,3 +1,4 @@
+<!-- Per-run context box fed to the next "Format with Gemma" pass. -->
 <template>
   <div class="context-panel">
     <div class="context-label">

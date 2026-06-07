@@ -1,4 +1,6 @@
-// ---- Web search tool (Gemma can call this during formatting) ----
+// Web search for the format pass: the tool definition Gemma can call, a
+// heuristic pre-search for models whose template can't call tools, and a
+// DuckDuckGo-scraping backend with result formatting.
 
 export const WEB_SEARCH_TOOL = {
   type: "function",

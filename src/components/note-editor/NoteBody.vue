@@ -1,3 +1,5 @@
+<!-- Note body: rendered Markdown preview, or a raw-Markdown textarea in edit
+     mode that stays in sync with streaming transcript updates. -->
 <template>
   <textarea
     v-if="editMode"

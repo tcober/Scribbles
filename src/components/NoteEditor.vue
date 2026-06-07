@@ -1,3 +1,5 @@
+<!-- Presentational editor: composes the title, body, pending images, context
+     panel, and toolbar, and handles image drag-and-drop. Props in, events out. -->
 <template>
   <div
     class="editor"

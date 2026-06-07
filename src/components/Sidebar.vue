@@ -1,3 +1,5 @@
+<!-- Presentational note list: shows the notes, marks the active one, and emits
+     select / create / delete / reveal. Props in, events out. -->
 <template>
   <aside class="sidebar">
     <div class="sidebar-header">

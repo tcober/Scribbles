@@ -1,3 +1,5 @@
+<!-- Container: binds the notes + editor stores to Sidebar and blocks navigation
+     while recording so an in-flight chunk can't land in the wrong note. -->
 <template>
   <Sidebar
     :notes="notesStore.notes"

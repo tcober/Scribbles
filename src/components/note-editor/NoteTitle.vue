@@ -1,3 +1,4 @@
+<!-- Editable note title; emits the new title on blur / Enter. -->
 <template>
   <div class="title-row">
     <input

@@ -1,3 +1,5 @@
+// Resolves every on-disk location under userData (notes, images, models) and
+// guards interpolated ids against path traversal.
 import { app } from "electron";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";

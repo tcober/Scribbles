@@ -1,3 +1,5 @@
+// Image storage: add/delete handlers that persist attachments under
+// userData/images/<noteId>/, plus the note-image:// protocol that serves them.
 import { ipcMain, protocol, net } from "electron";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";

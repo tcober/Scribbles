@@ -1,3 +1,5 @@
+<!-- Container: binds the notes + editor stores to NoteEditor and owns the
+     view-side concerns — debounced saves, image attaching, paste-to-attach. -->
 <template>
   <NoteEditor
     v-if="notesStore.activeNote"

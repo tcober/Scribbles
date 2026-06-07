@@ -14,20 +14,17 @@ export const useEditorStore = defineStore("editor", () => {
   const llmStatus = ref(null);
   // Live progress for the current format: { stage, detail }. Null when idle.
   const formatProgress = ref(null);
-  // Number of audio chunks currently being transcribed by whisper. A counter
-  // (not a flag) because chunks overlap — it stays > 0 while a just-stopped
-  // recording finishes its final chunk.
+  // Count (not a flag) of chunks whisper is transcribing — chunks overlap, and it
+  // stays > 0 while a just-stopped recording finishes its final chunk.
   const pendingTranscriptions = ref(0);
   // True only while the mic/AudioContext is being acquired, so the record button
-  // can react to the click immediately instead of waiting for getUserMedia.
+  // can react to the click without waiting for getUserMedia.
   const isStarting = ref(false);
-  // Offset into the active note's markdown where the current recording session's
-  // raw transcript begins. Written when recording starts, read + reset by a
-  // format pass so Gemma only sees the new speech.
+  // Offset into the note's markdown where this recording session's raw transcript
+  // begins, so a format pass shows Gemma only the new speech.
   const sessionStartIndex = ref(0);
-  // Snapshot of the note taken just before the last AI mutation (format or image
-  // placement) so it can be undone in one step. Shape: { noteId, markdown,
-  // sessionStartIndex }. Invalidated on note switch and manual edits.
+  // Note snapshot from just before the last AI mutation, for one-step undo. Shape:
+  // { noteId, markdown, sessionStartIndex }. Cleared on note switch / manual edit.
   const lastFormatSnapshot = ref(null);
 
   const isRecording = computed(() => status.value === "recording");
@@ -74,10 +71,9 @@ export const useEditorStore = defineStore("editor", () => {
     llmStatus.value = await window.api.checkLlm();
   }
 
-  // Reflect Gemma's live progress while a format runs. Ignore late updates that
-  // arrive after we've left the formatting state (e.g. post-cancel). Held in a
-  // closure variable (not reactive state) and re-subscribed idempotently so
-  // duplicate listeners don't pile up across Vite HMR reloads.
+  // Reflect Gemma's live progress while formatting, ignoring late updates that
+  // arrive after we leave the state (e.g. post-cancel). Re-subscribed idempotently
+  // so duplicate listeners don't pile up across Vite HMR reloads.
   let unsubscribe = null;
   function subscribeFormatProgress() {
     unsubscribe?.();
@@ -90,22 +86,19 @@ export const useEditorStore = defineStore("editor", () => {
     unsubscribe = null;
   }
 
-  // Run Gemma over the new raw transcript + any pending images, integrating with
-  // already-formatted content. The one action that coordinates both stores.
-  //   drain             — awaits any in-flight transcription (owned by the
-  //                       recording composable) so the transcript is complete.
-  //   cancelPendingSaves — clears the editor container's debounced save timers
-  //                       so a queued stale-context save can't race this format.
+  // Run Gemma over the new raw transcript, merging it into already-formatted
+  // content. The one action that coordinates both stores.
+  //   drain              — awaits any in-flight transcription so the transcript is complete.
+  //   cancelPendingSaves — cancels the container's debounced saves so a stale-context save can't race this.
   async function runFormat({ drain, cancelPendingSaves } = {}) {
     const notesStore = useNotesStore();
     const note = notesStore.activeNote;
     if (!note) return;
     if (status.value !== "idle") return;
 
-    // Claim the formatting state synchronously, BEFORE any await, so a second
-    // trigger can't slip past the guard above while we wait below — two
-    // concurrent Gemma generations would mean two model loads and can swap the
-    // machine. Do not introduce an await before this assignment.
+    // Claim the busy state synchronously, BEFORE any await, so a second trigger
+    // can't slip past the guard above — two concurrent Gemma runs mean two model
+    // loads and can swap the machine. Do not add an await before this.
     status.value = "formatting";
     formatProgress.value = { stage: "Starting…", detail: "" };
 
@@ -126,9 +119,8 @@ export const useEditorStore = defineStore("editor", () => {
       return;
     }
 
-    // Only re-send a bounded recent slice of the formatted note. Everything
-    // before the split stays verbatim and is stitched back on after Gemma
-    // returns, so the prompt size (and memory) stays flat no matter how long.
+    // Re-send only a bounded recent slice; the head stays verbatim and is
+    // stitched back after Gemma returns, keeping prompt size (and memory) flat.
     const { head: formattedHead, tail: formattedTail } =
       splitFormatContext(previouslyFormatted);
 
@@ -164,11 +156,9 @@ export const useEditorStore = defineStore("editor", () => {
     }
   }
 
-  // Place the pending images into the note without reformatting the prose: the
-  // main process captions each image (vision) and picks where it fits, then
-  // splices the image lines in so the existing text is left exactly as it was.
-  // Reuses the formatting status/progress/cancel plumbing (only one LLM run at a
-  // time), so it serializes against record + format the same way runFormat does.
+  // Splice the pending images into the note without reformatting the prose (the
+  // main process captions each and picks where it fits). Reuses the formatting
+  // status/progress/cancel plumbing, so it serializes against record + format.
   async function placeImages() {
     const notesStore = useNotesStore();
     const note = notesStore.activeNote;
@@ -177,8 +167,7 @@ export const useEditorStore = defineStore("editor", () => {
     const images = notesStore.pendingImages.slice();
     if (images.length === 0) return;
 
-    // Claim the busy state synchronously, BEFORE any await, so a second trigger
-    // can't start a concurrent run. Do not introduce an await before this.
+    // Claim the busy state synchronously, BEFORE any await (see runFormat).
     status.value = "formatting";
     formatProgress.value = { stage: "Looking at images…", detail: "" };
 

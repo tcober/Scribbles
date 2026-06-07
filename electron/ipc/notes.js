@@ -1,3 +1,5 @@
+// IPC handlers for note CRUD: each note is a JSON file under userData/notes, plus
+// a "reveal in Finder" helper.
 import { ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";

@@ -1,3 +1,5 @@
+// Main-process entry point: registers the IPC handlers and image protocol, then
+// creates the window and wires up app/mic lifecycle once Electron is ready.
 import {
   app,
   BrowserWindow,
@@ -16,16 +18,15 @@ import { registerTranscribeHandler } from "./ipc/transcribe.js";
 import { registerFormatHandlers } from "./ipc/format.js";
 import { registerPlaceImagesHandlers } from "./ipc/place-images.js";
 
-// Wire up every ipcMain.handle(...) before the app is ready — registration is
-// synchronous and order-independent, so the renderer can invoke as soon as it loads.
+// Register all IPC handlers before app-ready (synchronous, order-independent).
 registerNoteHandlers();
 registerImageHandlers();
 registerTranscribeHandler();
 registerFormatHandlers();
 registerPlaceImagesHandlers();
 
-// Register the custom image protocol BEFORE app ready so the renderer can resolve
-// note-image:// URLs in <img> tags within the markdown preview.
+// Privilege the note-image:// scheme before app-ready so the markdown preview's
+// <img> tags can resolve it (the handler itself is registered after ready).
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "note-image",
@@ -41,8 +42,7 @@ protocol.registerSchemesAsPrivileged([
 app.whenReady().then(async () => {
   await ensureDirs();
 
-  // Replace the default Electron dock icon on macOS (the .icns is used for
-  // packaged builds; this covers `npm run dev`/`npm start`).
+  // Set the macOS dock icon for dev runs (packaged builds use the .icns).
   if (process.platform === "darwin" && app.dock) {
     const dockIcon = nativeImage.createFromPath(APP_ICON);
     if (!dockIcon.isEmpty()) app.dock.setIcon(dockIcon);
@@ -50,7 +50,7 @@ app.whenReady().then(async () => {
 
   registerImageProtocol();
 
-  // Grant microphone access automatically — this is the only sensitive permission we use.
+  // Auto-grant microphone — the only sensitive permission the app uses.
   session.defaultSession.setPermissionRequestHandler(
     (_webContents, permission, callback) => {
       callback(permission === "media" || permission === "microphone");

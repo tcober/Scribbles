@@ -1,3 +1,5 @@
+// IPC handler that transcribes a WAV chunk by shelling out to whisper-cli,
+// feeding back the recent transcript so terms stay consistent across chunks.
 import { ipcMain } from "electron";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";
@@ -12,10 +14,8 @@ import { ensureWhisperModel, whisperBin } from "../whisper.js";
 const execFileP = promisify(execFile);
 
 export function registerTranscribeHandler() {
-  // Transcribe a WAV buffer by shelling out to Homebrew's whisper-cli (whisper.cpp).
-  // `carryover` is the tail of the transcript so far; feeding it back as context
-  // keeps word boundaries and proper nouns consistent across the independent
-  // per-chunk whisper calls (otherwise every chunk is decoded cold).
+  // `carryover` is the tail of the transcript so far; feeding it back keeps word
+  // boundaries and proper nouns consistent across the per-chunk whisper calls.
   ipcMain.handle("audio:transcribe", async (_event, wavBuffer, opts = {}) => {
     const modelFile = await ensureWhisperModel();
     const binPath = whisperBin();
