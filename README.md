@@ -8,7 +8,7 @@ Built and tested for **macOS on Apple Silicon** (arm64). Whisper runs on the GPU
 
 > You only need **[Ollama](https://ollama.com)** installed — the Whisper transcription engine is bundled inside the app.
 
-1. Download the latest `LocalNoteTaker-<version>-arm64.dmg` from the [Releases](https://github.com/YOUR_GITHUB_USERNAME/local-note-taker/releases) page (Apple Silicon only).
+1. Download the latest `LocalNoteTaker-<version>-arm64.dmg` from the [Releases](https://github.com/tcober/Note-Taker/releases) page (Apple Silicon only).
 2. Open the `.dmg` and drag **Local Note Taker** into Applications.
 3. The app is **not notarized by Apple**, so Gatekeeper blocks it on first launch. Clear the download quarantine once:
    ```bash
@@ -74,14 +74,27 @@ despite being unsigned.
 
 ### Publishing to GitHub Releases
 
-1. Set the real repo in `package.json` → `"repository".url` (replace `YOUR_GITHUB_USERNAME`).
-2. Bump `"version"`, commit, then tag: `git tag v0.1.0 && git push --tags`.
-3. Either let CI publish (push the tag — `.github/workflows/release.yml` builds on a
-   macOS runner and uploads to the matching release), or publish from your machine:
+Releases are cut from a pushed `v*` tag. The repo is already wired to
+[`tcober/Note-Taker`](https://github.com/tcober/Note-Taker).
+
+1. Bump `"version"` in `package.json`, commit it, then tag and push:
    ```bash
-   export GH_TOKEN=<a GitHub personal access token with "repo" scope>
-   npm run release
+   git tag v0.1.0 && git push origin v0.1.0
    ```
+2. `.github/workflows/release.yml` picks up the tag, builds on a macOS (arm64)
+   runner, and uploads the `.dmg`/`.zip` to a **draft** GitHub Release.
+3. Publish the draft to make it public (and mark it latest for auto-update):
+   ```bash
+   gh release edit v0.1.0 --draft=false --latest
+   ```
+   …or flip it from **Draft** to published in the GitHub Releases UI.
+
+To build and publish from your own machine instead of CI:
+
+```bash
+export GH_TOKEN=<a GitHub personal access token with "repo" scope>
+npm run release
+```
 
 > **Signing note:** with no Apple Developer ID, downloaders must clear the
 > quarantine flag once (see _Download & install_ above). If you later get a
@@ -91,17 +104,17 @@ despite being unsigned.
 ## Usage
 
 1. Click **+ New** in the sidebar to create a fresh note.
-2. Click **Start listening** in the bottom right. Grant mic permission the first time.
-3. Speak. The transcript appears live as Whisper decodes each chunk.
-4. (Optional) Drag-and-drop or paste images into the note body, and add background
-   context in the **Context** panel — jargon, what the meeting is about, or an
-   explicit request to search the web for something.
-5. Click **Format with Gemma**. Gemma turns the raw transcript into clean Markdown,
+2. Click **Start listening** in the bottom-right toolbar. Grant mic permission the first time.
+3. Speak. The transcript streams into the note live as Whisper decodes each ~15-second chunk. Click **Stop listening** when you're done.
+4. (Optional) Attach up to 3 images — drag-and-drop them onto the note, paste a screenshot anywhere, or use the **Attach images** button. Gemma places them where they fit when it formats.
+5. (Optional) Click **+ Context** to add background for the next format pass — jargon, what the meeting is about, or an explicit request to search the web for something.
+6. Click **Format with Gemma**. Gemma turns the raw transcript into clean Markdown,
    merges it into any already-formatted content, places your images where they fit,
    and — only if your context asks for it — searches the web (DuckDuckGo) to
    supplement the notes.
-6. Press **Start listening** again at any time to extend the note.
-7. Click **Show in Finder** in the sidebar to open the on-disk note folder.
+7. Toggle **Edit** / **Preview** in the toolbar to hand-tweak the raw Markdown.
+8. Press **Start listening** again at any time to extend the note; each new dictation formats on top of what's already there.
+9. Click **Show in Finder** in the sidebar to open the on-disk note folder.
 
 Notes live as `.json` files at:
 
@@ -131,7 +144,7 @@ Example: `NOTE_TAKER_WHISPER_MODEL=small.en npm run dev`
 │  Renderer (Vue 3)                Main (Node)                               │
 │  ────────────────                ──────────────                            │
 │  Mic → AudioContext              IPC: audio:transcribe →                   │
-│  → 16 kHz WAV  ────────────────► /tmp/*.wav → whisper-cli (brew) → text    │
+│  → 16 kHz WAV  ────────────────► /tmp/*.wav → whisper-cli (bundled) → text │
 │                                                                            │
 │  transcript ◄─────────────────── IPC return                                │
 │                                                                            │
