@@ -1,4 +1,4 @@
-# Local Note Taker
+# Scribbles
 
 Electron + Vue 3 desktop app that records your microphone, transcribes it locally with **Whisper** (whisper.cpp), and formats the transcript into clean Markdown notes using **Gemma 4** via [Ollama](https://ollama.com). You can also drop or paste images into a note (Gemma's vision places them where they belong) and give Gemma background context for a formatting pass — including asking it to search the web. Nothing leaves your machine except web searches you explicitly request.
 
@@ -8,11 +8,11 @@ Built and tested for **macOS on Apple Silicon** (arm64). Whisper runs on the GPU
 
 > You only need **[Ollama](https://ollama.com)** installed — the Whisper transcription engine is bundled inside the app.
 
-1. Download the latest `LocalNoteTaker-<version>-arm64.dmg` from the [Releases](https://github.com/tcober/Note-Taker/releases) page (Apple Silicon only).
-2. Open the `.dmg` and drag **Local Note Taker** into Applications.
+1. Download the latest `Scribbles-<version>-arm64.dmg` from the [Releases](https://github.com/tcober/Scribbles/releases) page (Apple Silicon only).
+2. Open the `.dmg` and drag **Scribbles** into Applications.
 3. The app is **not notarized by Apple**, so Gatekeeper blocks it on first launch. Clear the download quarantine once:
    ```bash
-   xattr -cr "/Applications/Local Note Taker.app"
+   xattr -cr "/Applications/Scribbles.app"
    ```
    then open it normally. (Or: right-click the app → **Open** → **Open**.)
 4. Install [Ollama](https://ollama.com), then pull the model it formats with:
@@ -29,7 +29,7 @@ Recording, transcription, and formatting all run locally; only web searches you 
    ```bash
    ollama pull gemma4
    ```
-   Override the model name with `NOTE_TAKER_MODEL=<model-name>` if you want a different tag (e.g. `NOTE_TAKER_MODEL=gemma4:12b npm run dev`).
+   Override the model name with `SCRIBBLES_MODEL=<model-name>` if you want a different tag (e.g. `SCRIBBLES_MODEL=gemma4:12b npm run dev`).
 3. **A `whisper-cli` binary** for local transcription — either build the bundled static copy or install it system-wide:
    ```bash
    npm run vendor:whisper   # builds a self-contained whisper-cli (needs cmake: brew install cmake)
@@ -40,11 +40,11 @@ Recording, transcription, and formatting all run locally; only web searches you 
 ## Install
 
 ```bash
-cd "Note Taker"
+cd Scribbles
 npm install
 ```
 
-On first transcription, the Whisper `large-v3-turbo` model (~1.6 GB) is downloaded to `~/Library/Application Support/local-note-taker/models/`. Subsequent runs reuse it. Set `NOTE_TAKER_WHISPER_MODEL` to a smaller model (e.g. `small.en`) if you want a lighter download.
+On first transcription, the Whisper `large-v3-turbo` model (~1.6 GB) is downloaded to `~/Library/Application Support/scribbles/models/`. Subsequent runs reuse it. Set `SCRIBBLES_WHISPER_MODEL` to a smaller model (e.g. `small.en`) if you want a lighter download.
 
 ## Run (dev)
 
@@ -75,7 +75,7 @@ despite being unsigned.
 ### Publishing to GitHub Releases
 
 Releases are cut from a pushed `v*` tag. The repo is already wired to
-[`tcober/Note-Taker`](https://github.com/tcober/Note-Taker).
+[`tcober/Scribbles`](https://github.com/tcober/Scribbles).
 
 1. Bump `"version"` in `package.json`, commit it, then tag and push:
    ```bash
@@ -119,22 +119,22 @@ npm run release
 Notes live as `.json` files at:
 
 ```
-~/Library/Application Support/local-note-taker/notes/
+~/Library/Application Support/scribbles/notes/
 ```
 
 ## Configuration
 
 Environment variables:
 
-| Variable                    | Default                  | Purpose                                                                                                            |
-| --------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `NOTE_TAKER_MODEL`          | `gemma4`                 | Ollama model name used for formatting.                                                                             |
-| `NOTE_TAKER_WHISPER_MODEL`  | `large-v3-turbo`         | Whisper model (tiny.en, base.en, small.en, medium.en, large-v3-turbo, large-v3). Bigger = slower + more accurate.  |
-| `NOTE_TAKER_WHISPER_BIN`    | _(bundled binary)_       | Path to the whisper-cli binary. Overrides the bundled/vendored one — handy for a custom build or off-PATH install. |
-| `NOTE_TAKER_WHISPER_PROMPT` | _(dev-notes hint)_       | Initial prompt fed to Whisper to bias word choice toward your domain. Defaults to a software-development hint.     |
-| `OLLAMA_HOST`               | `http://127.0.0.1:11434` | Where to reach Ollama.                                                                                             |
+| Variable                   | Default                  | Purpose                                                                                                            |
+| -------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `SCRIBBLES_MODEL`          | `gemma4`                 | Ollama model name used for formatting.                                                                             |
+| `SCRIBBLES_WHISPER_MODEL`  | `large-v3-turbo`         | Whisper model (tiny.en, base.en, small.en, medium.en, large-v3-turbo, large-v3). Bigger = slower + more accurate.  |
+| `SCRIBBLES_WHISPER_BIN`    | _(bundled binary)_       | Path to the whisper-cli binary. Overrides the bundled/vendored one — handy for a custom build or off-PATH install. |
+| `SCRIBBLES_WHISPER_PROMPT` | _(dev-notes hint)_       | Initial prompt fed to Whisper to bias word choice toward your domain. Defaults to a software-development hint.     |
+| `OLLAMA_HOST`              | `http://127.0.0.1:11434` | Where to reach Ollama.                                                                                             |
 
-Example: `NOTE_TAKER_WHISPER_MODEL=small.en npm run dev`
+Example: `SCRIBBLES_WHISPER_MODEL=small.en npm run dev`
 
 ## Architecture
 
@@ -163,6 +163,6 @@ Example: `NOTE_TAKER_WHISPER_MODEL=small.en npm run dev`
 
 - **"Cannot reach Ollama"**: run `ollama serve` or open the Ollama menubar app.
 - **"model not installed"**: `ollama pull gemma4`.
-- **"Could not find the whisper-cli binary"** (dev only): run `npm run vendor:whisper`, or `brew install whisper-cpp`. To point at a custom build, set `NOTE_TAKER_WHISPER_BIN=/full/path/to/whisper-cli`. Released builds bundle this binary, so end users never hit this.
-- **"App is damaged" / "can't be opened"** on a downloaded build: clear the quarantine flag — `xattr -cr "/Applications/Local Note Taker.app"` — then open again. Expected for an unsigned, un-notarized app.
+- **"Could not find the whisper-cli binary"** (dev only): run `npm run vendor:whisper`, or `brew install whisper-cpp`. To point at a custom build, set `SCRIBBLES_WHISPER_BIN=/full/path/to/whisper-cli`. Released builds bundle this binary, so end users never hit this.
+- **"App is damaged" / "can't be opened"** on a downloaded build: clear the quarantine flag — `xattr -cr "/Applications/Scribbles.app"` — then open again. Expected for an unsigned, un-notarized app.
 - **No microphone access**: System Settings → Privacy & Security → Microphone → enable for Electron (or Terminal during dev).

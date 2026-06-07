@@ -26,17 +26,17 @@ const execFileP = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const OLLAMA_MODEL = process.env.NOTE_TAKER_MODEL || "gemma4";
-const WHISPER_MODEL = process.env.NOTE_TAKER_WHISPER_MODEL || "large-v3-turbo";
+const OLLAMA_MODEL = process.env.SCRIBBLES_MODEL || "gemma4";
+const WHISPER_MODEL = process.env.SCRIBBLES_WHISPER_MODEL || "large-v3-turbo";
 
 // Resolve the whisper-cli binary. Priority:
-//   1. NOTE_TAKER_WHISPER_BIN override (advanced users / custom builds)
+//   1. SCRIBBLES_WHISPER_BIN override (advanced users / custom builds)
 //   2. the self-contained binary bundled in the packaged app (Contents/Resources/whisper)
 //   3. the vendored binary in the repo during dev (scripts/vendor-whisper.sh)
 //   4. a `whisper-cli` found on PATH (e.g. `brew install whisper-cpp`)
 function whisperBin() {
-  if (process.env.NOTE_TAKER_WHISPER_BIN)
-    return process.env.NOTE_TAKER_WHISPER_BIN;
+  if (process.env.SCRIBBLES_WHISPER_BIN)
+    return process.env.SCRIBBLES_WHISPER_BIN;
   const bundled = app.isPackaged
     ? join(process.resourcesPath, "whisper", "whisper-cli")
     : join(__dirname, "..", "resources", "whisper", "whisper-cli");
@@ -51,7 +51,7 @@ function whisperBin() {
 // brief topic hint is enough to bias toward dev terminology; large-v3-turbo no
 // longer needs the long vocabulary list the smaller models did.
 const WHISPER_PROMPT =
-  process.env.NOTE_TAKER_WHISPER_PROMPT ||
+  process.env.SCRIBBLES_WHISPER_PROMPT ||
   "Technical software development notes covering programming, web development, " +
     "cloud infrastructure, and developer tooling.";
 
@@ -414,7 +414,7 @@ ipcMain.handle("audio:transcribe", async (_event, wavBuffer, opts = {}) => {
 
   const base = join(
     os.tmpdir(),
-    `note-taker-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
+    `scribbles-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
   );
   const wavPath = `${base}.wav`;
   const txtPath = `${base}.txt`;

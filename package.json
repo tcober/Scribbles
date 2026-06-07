@@ -1,11 +1,11 @@
 {
-  "name": "local-note-taker",
+  "name": "scribbles",
   "version": "0.1.0",
   "description": "Electron + Vue note-taking app that records audio, transcribes with Whisper, and formats with Gemma via Ollama — all locally.",
   "author": "Thomas Cober",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tcober/Note-Taker.git"
+    "url": "https://github.com/tcober/Scribbles.git"
   },
   "main": "electron/main.js",
   "type": "module",
@@ -19,9 +19,9 @@
     "release": "npm run vendor:whisper && vite build && electron-builder --publish always"
   },
   "build": {
-    "appId": "com.localnotetaker.app",
-    "productName": "Local Note Taker",
-    "artifactName": "LocalNoteTaker-${version}-${arch}.${ext}",
+    "appId": "com.scribbles.app",
+    "productName": "Scribbles",
+    "artifactName": "Scribbles-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
