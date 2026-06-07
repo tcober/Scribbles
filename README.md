@@ -10,11 +10,22 @@ Built and tested for **macOS on Apple Silicon** (arm64). Whisper runs on the GPU
 
 1. Download the latest `Scribbles-<version>-arm64.dmg` from the [Releases](https://github.com/tcober/Scribbles/releases) page (Apple Silicon only).
 2. Open the `.dmg` and drag **Scribbles** into Applications.
-3. The app is **not notarized by Apple**, so Gatekeeper blocks it on first launch. Clear the download quarantine once:
+3. The app is **not notarized by Apple**, so Gatekeeper blocks it on first launch. There are a few ways to get past this — pick whichever is easiest:
+
+   **Option A — remove the quarantine flag in Terminal (recommended):**
+
    ```bash
    xattr -cr "/Applications/Scribbles.app"
    ```
-   then open it normally. (Or: right-click the app → **Open** → **Open**.)
+
+   Then open the app normally.
+
+   **Option B — Security & Privacy settings:**
+   Try to open the app once (it will be blocked), then go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the Scribbles entry.
+
+   **Option C — right-click open:**
+   Right-click (or Control-click) **Scribbles.app** → **Open** → **Open** in the dialog.
+
 4. Install [Ollama](https://ollama.com), then pull the model it formats with:
    ```bash
    ollama pull gemma4
@@ -164,5 +175,8 @@ Example: `SCRIBBLES_WHISPER_MODEL=small.en npm run dev`
 - **"Cannot reach Ollama"**: run `ollama serve` or open the Ollama menubar app.
 - **"model not installed"**: `ollama pull gemma4`.
 - **"Could not find the whisper-cli binary"** (dev only): run `npm run vendor:whisper`, or `brew install whisper-cpp`. To point at a custom build, set `SCRIBBLES_WHISPER_BIN=/full/path/to/whisper-cli`. Released builds bundle this binary, so end users never hit this.
-- **"App is damaged" / "can't be opened"** on a downloaded build: clear the quarantine flag — `xattr -cr "/Applications/Scribbles.app"` — then open again. Expected for an unsigned, un-notarized app.
+- **"App is damaged" / "can't be opened" / "Apple could not verify"** on a downloaded build: expected for an unsigned app. Fix with any of these:
+  - **Terminal:** `xattr -cr "/Applications/Scribbles.app"` then open normally.
+  - **Security settings:** attempt to open once, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
+  - **Right-click:** Control-click the app → **Open** → **Open**.
 - **No microphone access**: System Settings → Privacy & Security → Microphone → enable for Electron (or Terminal during dev).
