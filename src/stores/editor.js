@@ -25,10 +25,20 @@ export const useEditorStore = defineStore("editor", () => {
   // raw transcript begins. Written when recording starts, read + reset by a
   // format pass so Gemma only sees the new speech.
   const sessionStartIndex = ref(0);
+  // Snapshot of the note taken just before the last AI mutation (format or image
+  // placement) so it can be undone in one step. Shape: { noteId, markdown,
+  // sessionStartIndex }. Invalidated on note switch and manual edits.
+  const lastFormatSnapshot = ref(null);
 
   const isRecording = computed(() => status.value === "recording");
   const isFormatting = computed(() => status.value === "formatting");
   const isTranscribing = computed(() => pendingTranscriptions.value > 0);
+  // Undo is offered only while a snapshot exists AND still belongs to the note on
+  // screen — switching notes or editing by hand invalidates it.
+  const canUndo = computed(() => {
+    const snapshot = lastFormatSnapshot.value;
+    return !!snapshot && useNotesStore().activeId === snapshot.noteId;
+  });
 
   // --- status / error mutators (consumed mainly by the recording composable) ---
   function setRecording() {
@@ -106,10 +116,9 @@ export const useEditorStore = defineStore("editor", () => {
     const full = note.markdown || "";
     const newRaw = full.slice(sessionStartIndex.value).trim();
     const previouslyFormatted = full.slice(0, sessionStartIndex.value).trimEnd();
-    const images = notesStore.pendingImages.slice();
     const context = (note.context || "").trim();
 
-    if (!newRaw && images.length === 0) {
+    if (!newRaw) {
       status.value = "idle";
       formatProgress.value = null;
       return;
@@ -126,13 +135,8 @@ export const useEditorStore = defineStore("editor", () => {
         transcript: newRaw,
         existing: formattedTail,
         context,
-        images: images.map(({ filename, url, path, mime }) => ({
-          filename,
-          url,
-          path,
-          mime,
-        })),
       });
+      snapshotForUndo(note.id, full);
       notesStore.setMarkdown(
         formattedHead ? `${formattedHead}\n\n${updated}` : updated,
       );
@@ -143,7 +147,6 @@ export const useEditorStore = defineStore("editor", () => {
       await notesStore.saveActiveNote();
       await notesStore.refreshNotes();
       sessionStartIndex.value = notesStore.activeNote.markdown.length;
-      notesStore.clearPendingImages();
       status.value = "idle";
     } catch (err) {
       // A user-initiated cancel is not an error — leave the note untouched and
@@ -159,12 +162,91 @@ export const useEditorStore = defineStore("editor", () => {
     }
   }
 
-  // Ask the main process to abort the in-progress format. runFormat's catch then
-  // resolves the cancellation back to idle.
+  // Place the pending images into the note without reformatting the prose: the
+  // main process captions each image (vision) and picks where it fits, then
+  // splices the image lines in so the existing text is left exactly as it was.
+  // Reuses the formatting status/progress/cancel plumbing (only one LLM run at a
+  // time), so it serializes against record + format the same way runFormat does.
+  async function placeImages() {
+    const notesStore = useNotesStore();
+    const note = notesStore.activeNote;
+    if (!note) return;
+    if (status.value !== "idle") return;
+    const images = notesStore.pendingImages.slice();
+    if (images.length === 0) return;
+
+    // Claim the busy state synchronously, BEFORE any await, so a second trigger
+    // can't start a concurrent run. Do not introduce an await before this.
+    status.value = "formatting";
+    formatProgress.value = { stage: "Looking at images…", detail: "" };
+
+    const markdown = note.markdown || "";
+    try {
+      const updated = await window.api.placeImages({
+        markdown,
+        images: images.map(({ filename, url, path, mime }) => ({
+          filename,
+          url,
+          path,
+          mime,
+        })),
+      });
+      snapshotForUndo(note.id, markdown);
+      notesStore.setMarkdown(updated);
+      await notesStore.saveActiveNote();
+      await notesStore.refreshNotes();
+      sessionStartIndex.value = notesStore.activeNote.markdown.length;
+      notesStore.clearPendingImages();
+      status.value = "idle";
+    } catch (err) {
+      if ((err.message || "").includes("FORMAT_CANCELLED")) {
+        status.value = "idle";
+      } else {
+        status.value = "error";
+        errorMessage.value = err.message || String(err);
+      }
+    } finally {
+      formatProgress.value = null;
+    }
+  }
+
+  // Ask the main process to abort the in-progress format or placement run.
+  // runFormat/placeImages' catch then resolves the cancellation back to idle.
   function cancelFormat() {
     if (status.value !== "formatting") return;
     formatProgress.value = { stage: "Cancelling…", detail: "" };
     window.api.cancelFormat();
+  }
+
+  // Record the pre-change note so the last AI mutation can be undone in one step.
+  function snapshotForUndo(noteId, markdown) {
+    lastFormatSnapshot.value = {
+      noteId,
+      markdown,
+      sessionStartIndex: sessionStartIndex.value,
+    };
+  }
+
+  // Restore the note to its state just before the last format/placement.
+  async function undoLastFormat() {
+    const snapshot = lastFormatSnapshot.value;
+    if (!snapshot) return;
+    const notesStore = useNotesStore();
+    if (!notesStore.activeNote || notesStore.activeNote.id !== snapshot.noteId) {
+      lastFormatSnapshot.value = null;
+      return;
+    }
+    notesStore.setMarkdown(snapshot.markdown);
+    sessionStartIndex.value = snapshot.sessionStartIndex;
+    lastFormatSnapshot.value = null;
+    await notesStore.saveActiveNote();
+    await notesStore.refreshNotes();
+  }
+
+  // Drop the undo snapshot — called when it no longer maps to "the last AI
+  // change" (note switch, manual edit).
+  function clearFormatSnapshot() {
+    lastFormatSnapshot.value = null;
   }
 
   return {
@@ -178,6 +260,7 @@ export const useEditorStore = defineStore("editor", () => {
     isRecording,
     isFormatting,
     isTranscribing,
+    canUndo,
     setRecording,
     setIdle,
     recordingFailed,
@@ -191,6 +274,9 @@ export const useEditorStore = defineStore("editor", () => {
     subscribeFormatProgress,
     unsubscribeFormatProgress,
     runFormat,
+    placeImages,
     cancelFormat,
+    undoLastFormat,
+    clearFormatSnapshot,
   };
 });

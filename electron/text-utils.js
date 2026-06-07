@@ -37,6 +37,77 @@ export function chunkText(text, targetChars) {
   return chunks.length ? chunks : [trimmed];
 }
 
+// Split Markdown into its top-level blocks (maximal runs of non-blank lines,
+// separated by blank lines), recording each block's end offset in the original
+// string. The offset points just past the block's last character — before the
+// blank-line separator — which is exactly where a new image block should be
+// spliced so the surrounding text is left byte-for-byte unchanged.
+export function splitBlocksWithOffsets(markdown) {
+  const blocks = [];
+  if (!markdown) return blocks;
+  // A block starts at a non-newline char and runs until the next blank line
+  // (\n[ \t]*\n) or the end of the string. [^\n] guarantees forward progress.
+  const regex = /[^\n][\s\S]*?(?=\n[ \t]*\n|\s*$)/g;
+  let match;
+  while ((match = regex.exec(markdown)) !== null) {
+    const text = match[0];
+    // Whitespace-only runs (e.g. trailing spaces) aren't real blocks.
+    if (text.trim()) {
+      blocks.push({ text, endIndex: match.index + text.length });
+    }
+  }
+  return blocks;
+}
+
+// Splice image lines into `markdown` without altering any of its original bytes.
+// `items` is an array of { caption, url, after } where `after` is the 1-based
+// index (into `blocks`) of the block the image should follow; an out-of-range,
+// missing, or non-integer `after` appends the image at the end. Multiple images
+// targeting the same block keep their input order.
+export function insertImagesAtBlocks(markdown, blocks, items) {
+  const base = markdown || "";
+  const inserts = [];
+  const appended = [];
+  for (const item of items || []) {
+    const line = imageLine(item.caption, item.url);
+    const after = item.after;
+    if (Number.isInteger(after) && after >= 1 && after <= blocks.length) {
+      inserts.push({ offset: blocks[after - 1].endIndex, text: line });
+    } else {
+      appended.push(line);
+    }
+  }
+
+  // Array.sort is stable, so equal offsets preserve input order.
+  inserts.sort((left, right) => left.offset - right.offset);
+
+  let result = "";
+  let cursor = 0;
+  for (const insertion of inserts) {
+    result += `${base.slice(cursor, insertion.offset)}\n\n${insertion.text}`;
+    cursor = insertion.offset;
+  }
+  result += base.slice(cursor);
+
+  if (appended.length) {
+    const body = result.replace(/\s+$/, "");
+    const tail = appended.join("\n\n");
+    result = body ? `${body}\n\n${tail}` : tail;
+  }
+  return result;
+}
+
+// Build a Markdown image line. Captions are flattened to a single line and
+// stripped of brackets so they can't break the ![...](...) syntax.
+function imageLine(caption, url) {
+  const safe =
+    (caption || "")
+      .replace(/\s+/g, " ")
+      .replace(/[[\]]/g, "")
+      .trim() || "image";
+  return `![${safe}](${url})`;
+}
+
 // Strip conversational fluff Gemma sometimes prepends/appends despite being told
 // not to: "Here are your notes…", "If you'd like more detail…", "Hope this helps!",
 // outer ``` fences wrapping the whole document, etc.

@@ -29,7 +29,10 @@
       <div class="drop-msg">Drop image to attach</div>
     </div>
 
-    <div class="error" v-if="error">{{ error }}</div>
+    <div class="error" v-if="error">
+      <span class="error-msg">{{ error }}</span>
+      <button class="retry" @click="emit('retry-format')">Try again</button>
+    </div>
 
     <transition name="fade">
       <ContextPanel
@@ -50,11 +53,13 @@
       :is-starting="starting"
       :is-formatting="isFormatting"
       :format-progress="formatProgress"
+      :can-undo="canUndo"
       @attach-images="emit('attach-images', $event)"
       @toggle-edit="toggleEdit"
       @toggle-context="showContext = !showContext"
       @format="emit('format')"
       @cancel-format="emit('cancel-format')"
+      @undo="emit('undo')"
       @toggle="emit('toggle')"
     />
   </div>
@@ -78,17 +83,21 @@ const props = defineProps({
   formatProgress: { type: Object, default: null },
   transcribing: { type: Boolean, default: false },
   starting: { type: Boolean, default: false },
+  canUndo: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
   "title",
   "markdown",
+  "save",
   "context",
   "toggle",
   "attach-images",
   "remove-image",
   "format",
   "cancel-format",
+  "undo",
+  "retry-format",
 ]);
 
 const contextDraft = ref(props.note.context || "");
@@ -123,6 +132,8 @@ const hasContext = computed(
 );
 
 function toggleEdit() {
+  // Leaving edit mode ("Save") flushes the pending write right away.
+  if (editMode.value) emit("save");
   editMode.value = !editMode.value;
 }
 
@@ -188,6 +199,9 @@ function onDrop(event) {
 
 .error {
   -webkit-app-region: no-drag;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
   background: var(--danger-surface);
   color: var(--danger-text);
   padding: 0.6rem 1rem;
@@ -195,6 +209,25 @@ function onDrop(event) {
   border-radius: 6px;
   border: 1px solid var(--danger-border);
   font-size: 0.85rem;
+}
+.error-msg {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+.error .retry {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--danger-border);
+  border-radius: 4px;
+  color: var(--danger-text);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.error .retry:hover {
+  background: var(--danger-border);
 }
 
 .fade-enter-active,

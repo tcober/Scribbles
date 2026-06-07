@@ -10,14 +10,18 @@
     :format-progress="editorStore.formatProgress"
     :transcribing="editorStore.isTranscribing"
     :starting="editorStore.isStarting"
+    :can-undo="editorStore.canUndo"
     @title="notesStore.saveTitle"
     @markdown="onMarkdown"
+    @save="onSave"
     @context="onContext"
     @toggle="recording.toggleRecording"
     @attach-images="attachImages"
     @remove-image="notesStore.removePendingImage"
     @format="onFormat"
     @cancel-format="editorStore.cancelFormat"
+    @undo="editorStore.undoLastFormat"
+    @retry-format="onRetryFormat"
   />
 
   <div v-else class="empty">
@@ -25,8 +29,8 @@
     <p>Create a new note and hit <strong>Start listening</strong>.</p>
     <p>
       Audio is transcribed locally. Drop in up to
-      {{ MAX_IMAGES_PER_FORMAT }} images and Gemma 4 will place them in the right
-      spots when it formats.
+      {{ MAX_IMAGES_PER_FORMAT }} images and Gemma 4 will slot them into the
+      right spots — without touching the rest of your notes.
     </p>
     <button class="primary" @click="notesStore.createNote()">+ New note</button>
   </div>
@@ -51,8 +55,17 @@ const recording = useRecording();
 let markdownSaveTimer = null;
 function onMarkdown(markdown) {
   notesStore.setMarkdown(markdown);
+  // A manual edit means the undo snapshot no longer maps to "the last format".
+  editorStore.clearFormatSnapshot();
   clearTimeout(markdownSaveTimer);
   markdownSaveTimer = setTimeout(() => notesStore.saveActiveNote(), 400);
+}
+
+// "Save" on the editor toolbar flushes the pending debounced write immediately
+// so the word is truthful, rather than waiting out the 400ms timer.
+function onSave() {
+  clearTimeout(markdownSaveTimer);
+  notesStore.saveActiveNote();
 }
 
 let contextSaveTimer = null;
@@ -73,11 +86,20 @@ function onFormat() {
   editorStore.runFormat({ drain: recording.drain, cancelPendingSaves });
 }
 
+function onRetryFormat() {
+  editorStore.setIdle();
+  editorStore.clearError();
+  editorStore.runFormat({ drain: recording.drain, cancelPendingSaves });
+}
+
 async function attachImages(files) {
+  // Placement is an LLM run; don't stage into a note that's mid record/format.
+  if (editorStore.status !== "idle") return;
+
   const remaining = MAX_IMAGES_PER_FORMAT - notesStore.pendingImages.length;
   if (remaining <= 0) {
     editorStore.setErrorMessage(
-      `You can attach up to ${MAX_IMAGES_PER_FORMAT} images per format.`,
+      `You can place up to ${MAX_IMAGES_PER_FORMAT} images at a time.`,
     );
     return;
   }
@@ -87,7 +109,7 @@ async function attachImages(files) {
   );
   if (incoming.length > remaining) {
     editorStore.setErrorMessage(
-      `Only ${remaining} more image${remaining === 1 ? "" : "s"} can be added (limit ${MAX_IMAGES_PER_FORMAT} per format).`,
+      `Only ${remaining} more image${remaining === 1 ? "" : "s"} can be added (${MAX_IMAGES_PER_FORMAT} at a time).`,
     );
   }
   const accepted = incoming.slice(0, remaining);
@@ -105,6 +127,10 @@ async function attachImages(files) {
       editorStore.setErrorMessage(`Could not attach image: ${err.message}`);
     }
   }
+
+  // Immediately find a home for the freshly attached images, leaving the rest of
+  // the note untouched. placeImages reads the pending list and clears it on done.
+  if (notesStore.pendingImages.length) await editorStore.placeImages();
 }
 
 // Paste a screenshot anywhere to attach it. Named (not inline) so the same

@@ -1,9 +1,8 @@
 import { ipcMain } from "electron";
-import { promises as fs } from "node:fs";
 
 import { FORMAT_CHUNK_CHARS, OLLAMA_MODEL } from "../config.js";
 import { FormatCancelled, ollama, streamChat } from "../ollama.js";
-import { buildSystemPrompt, IMAGE_DESCRIBE_SYSTEM_PROMPT } from "../prompts.js";
+import { buildSystemPrompt } from "../prompts.js";
 import { chunkText, stripConversational } from "../text-utils.js";
 import {
   WEB_SEARCH_TOOL,
@@ -11,20 +10,13 @@ import {
   formatPreSearchBlock,
   preSearchFromContext,
 } from "../web-search.js";
-
-// Tracks the format currently running so a "cancel" IPC message can flip the
-// flag (and abort the live Ollama stream). Only one format runs at a time — the
-// renderer's status guard enforces that — so a single module-level token is enough.
-let activeFormatToken = null;
+import { beginRun, cancelActiveRun, endRun } from "./active-run.js";
 
 export function registerFormatHandlers() {
-  // Cancel the in-flight format: flag the active token (checked between stages and
-  // inside the stream loop) and abort the live Ollama stream so a long generation
-  // stops immediately rather than running to completion.
-  ipcMain.handle("llm:cancel-format", () => {
-    if (activeFormatToken) activeFormatToken.cancelled = true;
-    ollama.abort();
-  });
+  // Cancel the in-flight format or image-placement run: flag the active token
+  // (checked between stages and inside the stream loop) and abort the live
+  // Ollama stream so a long generation stops immediately. Shared with placement.
+  ipcMain.handle("llm:cancel-format", cancelActiveRun);
 
   ipcMain.handle("llm:format", handleFormat);
 
@@ -41,20 +33,17 @@ export function registerFormatHandlers() {
   });
 }
 
-// Format/merge a transcript into existing markdown via Gemma. Optionally accepts
-// image attachments; Gemma sees them (vision) and is told to insert them where
-// they best fit using [[image:N]] placeholders, which we then resolve to real
-// note-image:// URLs.
-async function handleFormat(event, { transcript, existing, context, images }) {
+// Format/merge a transcript into existing markdown via Gemma. Image placement is
+// a separate pipeline (see place-images.js) — this pass is text-only and never
+// touches attached images.
+async function handleFormat(event, { transcript, existing, context }) {
   const hasTranscript = transcript && transcript.trim();
-  const hasImages = Array.isArray(images) && images.length > 0;
   const hasContext = typeof context === "string" && context.trim().length > 0;
-  if (!hasTranscript && !hasImages) return existing || "";
+  if (!hasTranscript) return existing || "";
 
   // Cancellation token for this run + a helper to push progress updates to the
   // renderer so the user sees Gemma is making headway during a slow format.
-  const token = { cancelled: false };
-  activeFormatToken = token;
+  const token = beginRun();
   const report = (stage, detail = "") => {
     try {
       event.sender.send("llm:format-progress", { stage, detail });
@@ -69,11 +58,7 @@ async function handleFormat(event, { transcript, existing, context, images }) {
   try {
     report("Preparing…");
 
-    const systemPrompt = buildSystemPrompt({
-      hasContext,
-      hasImages,
-      imageCount: hasImages ? images.length : 0,
-    });
+    const systemPrompt = buildSystemPrompt({ hasContext });
 
     // Deterministic pre-search: if the context explicitly asks Gemma to look
     // something up, run the searches now so the results are in the prompt
@@ -84,31 +69,12 @@ async function handleFormat(event, { transcript, existing, context, images }) {
       : [];
     ensureLive();
 
-    // Analyze each attached image on its own. Doing one vision pass per image
-    // (instead of cramming them all into a single message) gives us a reliable,
-    // numbered description for each — Gemma's multi-image binding is too weak to
-    // tell image #1 from #3 when they're batched, which is what made placement of
-    // several images degrade into a blurry dump. We place by description instead.
-    if (hasImages) report("Looking at images…", `${images.length} attached`);
-    const imageBase64 = hasImages
-      ? await Promise.all(
-          images.map(async (img) =>
-            (await fs.readFile(img.path)).toString("base64"),
-          ),
-        )
-      : [];
-    const imageDescriptions = hasImages
-      ? await Promise.all(imageBase64.map((b64) => describeImage(b64, token)))
-      : [];
-    ensureLive();
-
     // One formatting pass: assemble the user message (context, optional web
-    // results, optional image descriptions, the running notes + the current
-    // transcript slice) and run the generation. Returns cleaned Markdown.
+    // results, the running notes + the current transcript slice) and run the
+    // generation. Returns cleaned Markdown.
     const runPass = async ({
       existingNotes,
       transcriptChunk,
-      includeImages,
       includePreSearch,
       includeWebTools,
       progressStage,
@@ -124,43 +90,17 @@ async function handleFormat(event, { transcript, existing, context, images }) {
         parts.push(formatPreSearchBlock(preSearchResults));
         parts.push("---");
       }
-      if (includeImages && hasImages) {
-        const lines = [
-          "Attached images (place each one where it fits best using ![caption](image:N)):",
-        ];
-        imageDescriptions.forEach((desc, index) => {
-          lines.push(
-            `[${index + 1}] ${desc || "image (no description available)"}`,
-          );
-        });
-        parts.push(lines.join("\n"));
-        parts.push("---");
-      }
-      const chunkHasText = transcriptChunk && transcriptChunk.trim();
       if (existingNotes && existingNotes.trim()) {
         parts.push(`Existing notes:\n\n${existingNotes}`);
         parts.push("---");
-        parts.push(
-          chunkHasText
-            ? `New transcript to merge:\n\n${transcriptChunk}`
-            : "(No new transcript — just place the attached images appropriately in the existing notes.)",
-        );
+        parts.push(`New transcript to merge:\n\n${transcriptChunk}`);
       } else {
-        parts.push(
-          chunkHasText
-            ? `Transcript:\n\n${transcriptChunk}`
-            : "(No transcript — produce a brief note framed around the attached images.)",
-        );
+        parts.push(`Transcript:\n\n${transcriptChunk}`);
       }
       parts.push(
-        includeImages && hasImages
-          ? `Return the complete updated Markdown notes with the ${images.length} attached image(s) inserted using the [image:N] placeholder syntax. Output ONLY the notes — no greeting, no commentary, no "here's your notes" preamble.`
-          : 'Return the complete updated Markdown notes. Output ONLY the notes — no greeting, no commentary, no "here\'s your notes" preamble.',
+        'Return the complete updated Markdown notes. Output ONLY the notes — no greeting, no commentary, no "here\'s your notes" preamble.',
       );
 
-      // The formatting pass is text-only: each image is already analyzed above
-      // and represented by its numbered description, so Gemma places by content
-      // rather than re-deriving it from a hard-to-disambiguate batch of images.
       const messages = [
         { role: "system", content: systemPrompt },
         { role: "user", content: parts.join("\n\n") },
@@ -240,11 +180,9 @@ async function handleFormat(event, { transcript, existing, context, images }) {
     // running notes. The whole transcript still gets formatted — it is just
     // assembled incrementally so each prompt (and Gemma's KV-cache memory) stays
     // bounded no matter how long the recording is, instead of one giant prompt
-    // that can swap a low-RAM machine. Images and web results are applied once,
-    // on the final slice, over the complete notes.
-    const transcriptChunks = hasTranscript
-      ? chunkText(transcript, FORMAT_CHUNK_CHARS)
-      : [""];
+    // that can swap a low-RAM machine. Web results are applied once, on the final
+    // slice, over the complete notes.
+    const transcriptChunks = chunkText(transcript, FORMAT_CHUNK_CHARS);
 
     let runningNotes = existing && existing.trim() ? existing.trim() : "";
     let out = runningNotes;
@@ -264,7 +202,6 @@ async function handleFormat(event, { transcript, existing, context, images }) {
       out = await runPass({
         existingNotes: runningNotes,
         transcriptChunk: transcriptChunks[chunkIndex],
-        includeImages: isFinalChunk && hasImages,
         includePreSearch: isFinalChunk && preSearchResults.length > 0,
         includeWebTools: isFinalChunk && hasContext,
         progressStage: multiPass
@@ -274,49 +211,8 @@ async function handleFormat(event, { transcript, existing, context, images }) {
       runningNotes = out;
     }
 
-    if (hasImages) {
-      // Resolve [image:N] / image:N placeholders to real note-image:// URLs.
-      out = out.replace(/\(image:(\d+)\)/g, (full, numberText) => {
-        const index = parseInt(numberText, 10) - 1;
-        const img = images[index];
-        return img ? `(${img.url})` : full;
-      });
-      // Fallback: append any images Gemma forgot to place, captioned with the
-      // description we generated for them.
-      for (let index = 0; index < images.length; index++) {
-        if (!out.includes(images[index].url)) {
-          const caption =
-            imageDescriptions[index] || `attached image ${index + 1}`;
-          out += `\n\n![${caption}](${images[index].url})`;
-        }
-      }
-    }
-
     return out;
   } finally {
-    if (activeFormatToken === token) activeFormatToken = null;
-  }
-}
-
-// Run a single-image vision pass so each attachment gets its own concise
-// description. Done per image (rather than batching) because the local vision
-// model can't reliably tell several batched images apart — analyzing them one at
-// a time is what lets the formatter place each one in the right spot. Best-effort:
-// on any failure we return '' and the formatter falls back to generic captions.
-async function describeImage(base64, token) {
-  try {
-    const message = await streamChat({
-      messages: [
-        { role: "system", content: IMAGE_DESCRIBE_SYSTEM_PROMPT },
-        { role: "user", content: "Describe this image.", images: [base64] },
-      ],
-      options: { temperature: 0.1 },
-      token,
-    });
-    return message.content.replace(/\s+/g, " ");
-  } catch (err) {
-    // Let a deliberate cancel bubble up; swallow only real description failures.
-    if (err instanceof FormatCancelled) throw err;
-    return "";
+    endRun(token);
   }
 }

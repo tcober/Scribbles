@@ -15,6 +15,7 @@ globalThis.window.api = {
   deleteImage: vi.fn().mockResolvedValue(undefined),
   transcribe: vi.fn().mockResolvedValue(""),
   formatNote: vi.fn().mockResolvedValue(""),
+  placeImages: vi.fn().mockResolvedValue(""),
   cancelFormat: vi.fn().mockResolvedValue(undefined),
   onFormatProgress: vi.fn().mockReturnValue(() => {}),
   checkLlm: vi.fn().mockResolvedValue(null),

@@ -17,6 +17,7 @@ import {
 } from "./ipc/images.js";
 import { registerTranscribeHandler } from "./ipc/transcribe.js";
 import { registerFormatHandlers } from "./ipc/format.js";
+import { registerPlaceImagesHandlers } from "./ipc/place-images.js";
 
 // Wire up every ipcMain.handle(...) before the app is ready — registration is
 // synchronous and order-independent, so the renderer can invoke as soon as it loads.
@@ -24,6 +25,7 @@ registerNoteHandlers();
 registerImageHandlers();
 registerTranscribeHandler();
 registerFormatHandlers();
+registerPlaceImagesHandlers();
 
 // Register the custom image protocol BEFORE app ready so the renderer can resolve
 // note-image:// URLs in <img> tags within the markdown preview.

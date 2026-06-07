@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("api", {
   transcribe: (wavArrayBuffer, opts) =>
     ipcRenderer.invoke("audio:transcribe", wavArrayBuffer, opts),
   formatNote: (payload) => ipcRenderer.invoke("llm:format", payload),
+  placeImages: (payload) => ipcRenderer.invoke("llm:place-images", payload),
   cancelFormat: () => ipcRenderer.invoke("llm:cancel-format"),
   // Subscribe to live progress updates emitted during a format. Returns an
   // unsubscribe function so the caller can detach the listener.

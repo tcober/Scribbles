@@ -9,24 +9,23 @@ const promptsDir = join(dirname(fileURLToPath(import.meta.url)), "prompts");
 const readPrompt = (file) => readFileSync(join(promptsDir, file), "utf8").trim();
 
 // Loaded once at startup. The base note-taking rules are always present; the
-// context and image fragments are appended only when those inputs exist.
+// context fragment is appended only when context is provided.
 const NOTES_RULES = readPrompt("notes.md");
 const CONTEXT_RULES = readPrompt("context.md");
-const IMAGE_RULES = readPrompt("images.md");
 
-// System prompt for the per-image vision pass: one concise sentence describing
-// what a single attachment shows, used later to place it in the notes.
+// System prompt for the per-image vision pass: a short caption describing what a
+// single attachment shows, used both to place the image and as its caption.
 export const IMAGE_DESCRIBE_SYSTEM_PROMPT = readPrompt("image-describe.md");
 
-export function buildSystemPrompt({ hasContext, hasImages, imageCount }) {
+// System prompt for the image-placement pass: picks which note block each image
+// should follow and returns placement JSON only (it never rewrites the notes).
+export const PLACE_IMAGES_SYSTEM_PROMPT = readPrompt("place-images.md");
+
+export function buildSystemPrompt({ hasContext }) {
   const sections = [NOTES_RULES];
 
   if (hasContext) {
     sections.push(CONTEXT_RULES);
-  }
-
-  if (hasImages) {
-    sections.push(IMAGE_RULES.replaceAll("{{imageCount}}", String(imageCount)));
   }
 
   return sections.join("\n\n");

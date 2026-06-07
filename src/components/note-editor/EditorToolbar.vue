@@ -24,11 +24,21 @@
       />
       <button
         class="ghost"
-        :disabled="isFormatting"
+        :disabled="isFormatting || isRecording"
         @click="openFilePicker"
-        title="Attach images"
+        title="Attach images — Gemma slots them in without changing your text"
       >
         Attach images
+      </button>
+
+      <button
+        v-if="canUndo"
+        class="ghost"
+        :disabled="isFormatting || isRecording"
+        @click="emit('undo')"
+        title="Undo the last format / image placement"
+      >
+        Undo
       </button>
 
       <button
@@ -36,9 +46,9 @@
         :class="{ active: editMode }"
         :disabled="isFormatting"
         @click="emit('toggle-edit')"
-        :title="editMode ? 'Switch to preview' : 'Edit raw Markdown'"
+        :title="editMode ? 'Save and switch to preview' : 'Edit raw Markdown'"
       >
-        {{ editMode ? "Preview" : "Edit" }}
+        {{ editMode ? "Save" : "Edit" }}
       </button>
 
       <div
@@ -112,6 +122,7 @@ const props = defineProps({
   isStarting: { type: Boolean, default: false },
   isFormatting: { type: Boolean, default: false },
   formatProgress: { type: Object, default: null },
+  canUndo: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -120,6 +131,7 @@ const emit = defineEmits([
   "toggle-context",
   "format",
   "cancel-format",
+  "undo",
   "toggle",
 ]);
 

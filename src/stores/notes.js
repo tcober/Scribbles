@@ -4,6 +4,7 @@ import { marked } from "marked";
 
 import { MAX_IMAGES_PER_FORMAT } from "../utils/constants.js";
 import { plain } from "../utils/plain.js";
+import { useEditorStore } from "./editor.js";
 
 // The "content" store: the note collection, the loaded active note, and the
 // images staged for the next format pass. It owns every notes/images IPC call.
@@ -29,6 +30,7 @@ export const useNotesStore = defineStore("notes", () => {
   async function selectNote(id) {
     activeNote.value = await window.api.loadNote(id);
     pendingImages.value = [];
+    useEditorStore().clearFormatSnapshot();
   }
 
   async function createNote(title = "Untitled note") {
@@ -36,6 +38,7 @@ export const useNotesStore = defineStore("notes", () => {
     await refreshNotes();
     activeNote.value = created;
     pendingImages.value = [];
+    useEditorStore().clearFormatSnapshot();
     return created;
   }
 
@@ -45,6 +48,7 @@ export const useNotesStore = defineStore("notes", () => {
       activeNote.value = null;
       pendingImages.value = [];
     }
+    useEditorStore().clearFormatSnapshot();
     await refreshNotes();
   }
 

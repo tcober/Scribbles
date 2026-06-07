@@ -2,9 +2,8 @@
   <transition name="fade">
     <div v-if="images.length" class="pending">
       <div class="pending-label">
-        {{ images.length }}{{ maxImages ? ` / ${maxImages}` : "" }}
-        image{{ images.length === 1 ? "" : "s" }}
-        pending — will be placed on next format
+        Placing {{ images.length }}{{ maxImages ? ` / ${maxImages}` : "" }}
+        image{{ images.length === 1 ? "" : "s" }} into your notes…
       </div>
       <div class="thumbs">
         <div v-for="img in images" :key="img.filename" class="thumb">
