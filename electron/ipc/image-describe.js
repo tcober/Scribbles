@@ -17,9 +17,9 @@ export async function describeImage(base64, token) {
       token,
     });
     return message.content.replace(/\s+/g, " ").trim();
-  } catch (err) {
+  } catch (error) {
     // Let a deliberate cancel bubble up; swallow only real description failures.
-    if (err instanceof FormatCancelled) throw err;
+    if (error instanceof FormatCancelled) throw error;
     return "";
   }
 }

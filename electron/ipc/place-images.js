@@ -26,16 +26,17 @@ async function handlePlaceImages(event, { markdown, images }) {
   const { token, report, ensureLive } = beginReportedRun(event);
 
   try {
-    // Caption each image on its own (the local vision model can't reliably tell
-    // batched images apart). The caption doubles as the placement hint.
-    report("Looking at images…", `${images.length} attached`);
-    const captions = await Promise.all(
-      images.map(async (image) => {
-        const base64 = (await fs.readFile(image.path)).toString("base64");
-        return describeImage(base64, token);
-      }),
-    );
-    ensureLive();
+    // Caption each image on its own (the local vision model can't reliably
+    // tell batched images apart), and one at a time — concurrent vision passes
+    // stack up on Ollama's memory and stall low-RAM machines. The caption
+    // doubles as the placement hint.
+    const captions = [];
+    for (const [index, image] of images.entries()) {
+      report("Looking at images…", `image ${index + 1} of ${images.length}`);
+      const base64 = (await fs.readFile(image.path)).toString("base64");
+      captions.push(await describeImage(base64, token));
+      ensureLive();
+    }
 
     const blocks = splitBlocksWithOffsets(base);
 
@@ -90,8 +91,8 @@ async function choosePlacements({ blocks, captions, token, report }) {
       onProgress: () => report("Finding the best spot…"),
     });
     return parsePlacements(message.content, blocks.length);
-  } catch (err) {
-    if (err instanceof FormatCancelled) throw err;
+  } catch (error) {
+    if (error instanceof FormatCancelled) throw error;
     return {};
   }
 }

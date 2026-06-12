@@ -18,7 +18,6 @@ export class Recorder {
     this.onChunk = null;
     this.chunkThreshold = 0;
     this.firstChunkThreshold = 0;
-    this.seq = 0;
   }
 
   async start({
@@ -56,7 +55,6 @@ export class Recorder {
       firstChunkSeconds * this.sourceSampleRate,
     );
     this.chunk = [];
-    this.seq = 0;
 
     let pending = 0;
     let flushCount = 0;
@@ -91,7 +89,7 @@ export class Recorder {
     );
     if (resampled.length < TARGET_SAMPLE_RATE / 4) return; // skip <0.25s chunks (likely silence/jitter)
     const wav = encodeWav(resampled, TARGET_SAMPLE_RATE);
-    this.onChunk(wav, this.seq++);
+    this.onChunk(wav);
   }
 
   async stop() {
@@ -129,20 +127,21 @@ function resample(samples, fromRate, toRate) {
   if (fromRate === toRate) return samples;
   const ratio = fromRate / toRate;
   const newLength = Math.round(samples.length / ratio);
-  const out = new Float32Array(newLength);
+  const resampled = new Float32Array(newLength);
   for (let index = 0; index < newLength; index++) {
     const position = index * ratio;
     const lower = Math.floor(position);
     const upper = Math.min(lower + 1, samples.length - 1);
     const fraction = position - lower;
-    out[index] = samples[lower] * (1 - fraction) + samples[upper] * fraction;
+    resampled[index] =
+      samples[lower] * (1 - fraction) + samples[upper] * fraction;
   }
-  return out;
+  return resampled;
 }
 
 function encodeWav(samples, sampleRate) {
   const bytesPerSample = 2;
-  const numChannels = 1;
+  const channelCount = 1;
   const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
   const view = new DataView(buffer);
 
@@ -152,10 +151,10 @@ function encodeWav(samples, sampleRate) {
   writeString(view, 12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
+  view.setUint16(22, channelCount, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
-  view.setUint16(32, numChannels * bytesPerSample, true);
+  view.setUint32(28, sampleRate * channelCount * bytesPerSample, true);
+  view.setUint16(32, channelCount * bytesPerSample, true);
   view.setUint16(34, 8 * bytesPerSample, true);
   writeString(view, 36, "data");
   view.setUint32(40, samples.length * bytesPerSample, true);
@@ -169,8 +168,8 @@ function encodeWav(samples, sampleRate) {
   return buffer;
 }
 
-function writeString(view, offset, str) {
-  for (let index = 0; index < str.length; index++) {
-    view.setUint8(offset + index, str.charCodeAt(index));
+function writeString(view, offset, text) {
+  for (let index = 0; index < text.length; index++) {
+    view.setUint8(offset + index, text.charCodeAt(index));
   }
 }

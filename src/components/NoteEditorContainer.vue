@@ -124,8 +124,8 @@ async function attachImages(files) {
         dataUrl,
       });
       notesStore.addPendingImage(image);
-    } catch (err) {
-      editorStore.setErrorMessage(`Could not attach image: ${err.message}`);
+    } catch (error) {
+      editorStore.setErrorMessage(`Could not attach image: ${error.message}`);
     }
   }
 

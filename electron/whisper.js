@@ -36,33 +36,35 @@ export async function ensureWhisperModel() {
   return target;
 }
 
-function downloadFile(url, dest) {
+function downloadFile(url, destination) {
   return new Promise((resolve, reject) => {
-    const file = createWriteStream(dest);
-    const req = https.get(url, (res) => {
-      if (
-        res.statusCode >= 300 &&
-        res.statusCode < 400 &&
-        res.headers.location
-      ) {
-        file.close();
-        fs.unlink(dest).catch(() => {});
-        return downloadFile(res.headers.location, dest).then(resolve, reject);
-      }
-      if (res.statusCode !== 200) {
-        file.close();
-        fs.unlink(dest).catch(() => {});
-        return reject(
-          new Error(`Download failed (${res.statusCode}) for ${url}`),
+    const fileStream = createWriteStream(destination);
+    // Abandon a failed or redirected attempt: close the stream and remove the
+    // partial file so a retry never sees a truncated model.
+    const discardPartial = () => {
+      fileStream.close();
+      fs.unlink(destination).catch(() => {});
+    };
+
+    const request = https.get(url, (response) => {
+      const { statusCode } = response;
+      if (statusCode >= 300 && statusCode < 400 && response.headers.location) {
+        discardPartial();
+        return downloadFile(response.headers.location, destination).then(
+          resolve,
+          reject,
         );
       }
-      res.pipe(file);
-      file.on("finish", () => file.close(resolve));
+      if (statusCode !== 200) {
+        discardPartial();
+        return reject(new Error(`Download failed (${statusCode}) for ${url}`));
+      }
+      response.pipe(fileStream);
+      fileStream.on("finish", () => fileStream.close(resolve));
     });
-    req.on("error", (err) => {
-      file.close();
-      fs.unlink(dest).catch(() => {});
-      reject(err);
+    request.on("error", (error) => {
+      discardPartial();
+      reject(error);
     });
   });
 }

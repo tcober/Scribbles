@@ -9,7 +9,7 @@ import { APP_ICON } from "./config.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function createWindow() {
-  const win = new BrowserWindow({
+  const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     backgroundColor: "#10131a",
@@ -22,15 +22,15 @@ export async function createWindow() {
     },
   });
 
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
   });
 
   if (process.env.NODE_ENV === "development") {
-    await win.loadURL("http://localhost:5173");
-    win.webContents.openDevTools({ mode: "detach" });
+    await mainWindow.loadURL("http://localhost:5173");
+    mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    await win.loadFile(join(__dirname, "..", "dist", "index.html"));
+    await mainWindow.loadFile(join(__dirname, "..", "dist", "index.html"));
   }
 }

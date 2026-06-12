@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { beginReportedRun } from "../ipc/active-run.js";
+import {
+  beginReportedRun,
+  beginRun,
+  cancelActiveRun,
+  endRun,
+} from "../ipc/active-run.js";
 import { FormatCancelled } from "../ollama.js";
 
 const fakeEvent = (send) => ({ sender: { send } });
@@ -48,5 +53,31 @@ describe("beginReportedRun", () => {
     const { token, ensureLive } = beginReportedRun(fakeEvent(vi.fn()));
     token.cancelled = true;
     expect(() => ensureLive()).toThrow(FormatCancelled);
+  });
+});
+
+describe("run token lifecycle", () => {
+  it("cancelActiveRun flags the run in flight; a finished run cannot be flagged", () => {
+    const finished = beginRun();
+    endRun(finished);
+    cancelActiveRun();
+    expect(finished.cancelled).toBe(false);
+
+    const live = beginRun();
+    cancelActiveRun();
+    expect(live.cancelled).toBe(true);
+    endRun(live);
+  });
+
+  it("a stale endRun does not clear a newer run", () => {
+    const oldRun = beginRun();
+    const newRun = beginRun(); // replaces oldRun as the active token
+    endRun(oldRun); // stale — must not detach newRun
+
+    cancelActiveRun();
+
+    expect(newRun.cancelled).toBe(true);
+    expect(oldRun.cancelled).toBe(false);
+    endRun(newRun);
   });
 });

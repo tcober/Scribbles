@@ -74,13 +74,14 @@ watch(
 // so we don't clobber their in-progress edits.
 watch(
   () => props.note.markdown,
-  (newVal) => {
-    const updated = newVal || "";
+  (newMarkdown) => {
+    const updated = newMarkdown || "";
     if (props.editMode && updated.startsWith(lastSeenMarkdown)) {
       const tail = updated.slice(lastSeenMarkdown.length);
       if (tail) {
-        const el = textareaRef.value;
-        const atEnd = el && el.selectionStart === markdownDraft.value.length;
+        const textarea = textareaRef.value;
+        const atEnd =
+          textarea && textarea.selectionStart === markdownDraft.value.length;
         markdownDraft.value = markdownDraft.value + tail;
         if (atEnd) {
           // Keep the caret at the end so streaming feels natural.
@@ -98,8 +99,8 @@ watch(
 // markdown and drop the caret in.
 watch(
   () => props.editMode,
-  (on) => {
-    if (!on) return;
+  (enabled) => {
+    if (!enabled) return;
     markdownDraft.value = props.note.markdown || "";
     lastSeenMarkdown = markdownDraft.value;
     requestAnimationFrame(() => textareaRef.value?.focus());
@@ -108,10 +109,11 @@ watch(
 
 function focusEnd() {
   requestAnimationFrame(() => {
-    const el = textareaRef.value;
-    if (!el) return;
-    el.selectionStart = el.selectionEnd = markdownDraft.value.length;
-    el.scrollTop = el.scrollHeight;
+    const textarea = textareaRef.value;
+    if (!textarea) return;
+    textarea.selectionStart = textarea.selectionEnd =
+      markdownDraft.value.length;
+    textarea.scrollTop = textarea.scrollHeight;
   });
 }
 

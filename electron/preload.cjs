@@ -11,8 +11,8 @@ contextBridge.exposeInMainWorld("api", {
   addImage: (payload) => ipcRenderer.invoke("images:add", payload),
   deleteImage: (payload) => ipcRenderer.invoke("images:delete", payload),
 
-  transcribe: (wavArrayBuffer, opts) =>
-    ipcRenderer.invoke("audio:transcribe", wavArrayBuffer, opts),
+  transcribe: (wavArrayBuffer, options) =>
+    ipcRenderer.invoke("audio:transcribe", wavArrayBuffer, options),
   formatNote: (payload) => ipcRenderer.invoke("llm:format", payload),
   placeImages: (payload) => ipcRenderer.invoke("llm:place-images", payload),
   cancelFormat: () => ipcRenderer.invoke("llm:cancel-format"),

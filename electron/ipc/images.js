@@ -16,16 +16,16 @@ export function registerImageHandlers() {
     const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
     if (!match) throw new Error("Expected a data: URL");
     const mime = match[1].toLowerCase();
-    const ext = EXT_BY_MIME[mime];
-    if (!ext) throw new Error(`Unsupported image type: ${mime}`);
+    const extension = EXT_BY_MIME[mime];
+    if (!extension) throw new Error(`Unsupported image type: ${mime}`);
 
-    const buf = Buffer.from(match[2], "base64");
+    const buffer = Buffer.from(match[2], "base64");
     const id = crypto.randomUUID();
-    const filename = `${id}${ext}`;
+    const filename = `${id}${extension}`;
 
     const dir = imagesDirFor(noteId);
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(join(dir, filename), buf);
+    await fs.writeFile(join(dir, filename), buffer);
 
     return {
       id,
@@ -50,14 +50,14 @@ export function registerImageProtocol() {
     try {
       const url = new URL(request.url);
       const noteId = url.hostname;
-      const file = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
-      if (!noteId || !file || file.includes("..")) {
+      const filename = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+      if (!noteId || !filename || filename.includes("..")) {
         return new Response("Bad request", { status: 400 });
       }
-      const filePath = join(imagesDirFor(noteId), file);
+      const filePath = join(imagesDirFor(noteId), filename);
       return net.fetch(`file://${filePath}`);
-    } catch (err) {
-      return new Response(`Error: ${err.message}`, { status: 500 });
+    } catch (error) {
+      return new Response(`Error: ${error.message}`, { status: 500 });
     }
   });
 }

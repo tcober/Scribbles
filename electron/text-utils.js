@@ -37,6 +37,35 @@ export function chunkText(text, targetChars) {
   return chunks.length ? chunks : [trimmed];
 }
 
+// Cap on how much of the running notes a multi-pass format re-reads and
+// rewrites per pass. Everything before a clean Markdown boundary is settled —
+// it is set aside verbatim and stitched back afterwards, so each pass costs
+// one bounded prompt + one bounded regeneration no matter how long the
+// recording gets. (The renderer applies the same trick before the first pass;
+// see src/utils/formatContext.js — kept separate because packaged builds only
+// ship dist/ and electron/.)
+export const RECENT_NOTES_CHARS = 2000;
+
+export function splitRecentNotes(markdown) {
+  if (markdown.length <= RECENT_NOTES_CHARS) {
+    return { head: "", tail: markdown };
+  }
+  const target = markdown.length - RECENT_NOTES_CHARS;
+  // Prefer to start the tail at a heading so Gemma gets a coherent section;
+  // fall back to a paragraph break, then a hard cut as a last resort.
+  let splitIndex = markdown.indexOf("\n#", target);
+  if (splitIndex !== -1) {
+    splitIndex += 1; // start the tail at the '#'
+  } else {
+    splitIndex = markdown.indexOf("\n\n", target);
+    splitIndex = splitIndex === -1 ? target : splitIndex + 2;
+  }
+  return {
+    head: markdown.slice(0, splitIndex).trimEnd(),
+    tail: markdown.slice(splitIndex).trimStart(),
+  };
+}
+
 // Split Markdown into its top-level blocks (maximal runs of non-blank lines,
 // separated by blank lines), recording each block's end offset in the original
 // string. The offset points just past the block's last character — before the

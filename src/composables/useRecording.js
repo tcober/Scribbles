@@ -26,8 +26,8 @@ export function useRecording() {
         // Carry the most recent words into the next chunk for cross-chunk context.
         carryover = `${carryover} ${text}`.slice(-600);
         await notesStore.saveActiveNote();
-      } catch (err) {
-        editorStore.setErrorMessage(err.message || String(err));
+      } catch (error) {
+        editorStore.setErrorMessage(error.message || String(error));
       } finally {
         editorStore.decTranscriptions();
       }
@@ -47,9 +47,9 @@ export function useRecording() {
         firstChunkSeconds: 5,
       });
       editorStore.setRecording();
-    } catch (err) {
+    } catch (error) {
       editorStore.recordingFailed(
-        `Could not access microphone: ${err.message}`,
+        `Could not access microphone: ${error.message}`,
       );
     } finally {
       editorStore.setStarting(false);
@@ -59,8 +59,8 @@ export function useRecording() {
   async function stopRecording() {
     try {
       await recorder.stop();
-    } catch (err) {
-      editorStore.recordingFailed(`Recording failed: ${err.message}`);
+    } catch (error) {
+      editorStore.recordingFailed(`Recording failed: ${error.message}`);
       return;
     }
     // Leave the "recording" state right away so the button stops feeling stuck.

@@ -10,11 +10,11 @@
         into your notes…
       </div>
       <div class="thumbs">
-        <div v-for="img in images" :key="img.filename" class="thumb">
-          <img :src="img.url" alt="" />
+        <div v-for="image in images" :key="image.filename" class="thumb">
+          <img :src="image.url" alt="" />
           <button
             class="thumb-remove"
-            @click="emit('remove', img.filename)"
+            @click="emit('remove', image.filename)"
             title="Remove"
           >
             ×

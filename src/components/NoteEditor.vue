@@ -28,11 +28,11 @@
     />
 
     <div v-if="isDragging" class="drop-overlay">
-      <div class="drop-msg">Drop image to attach</div>
+      <div class="drop-message">Drop image to attach</div>
     </div>
 
     <div class="error" v-if="error">
-      <span class="error-msg">{{ error }}</span>
+      <span class="error-message">{{ error }}</span>
       <button class="retry" @click="emit('retry-format')">Try again</button>
     </div>
 
@@ -120,8 +120,8 @@ watch(
 // format), reset the draft and collapse the panel so the next run starts fresh.
 watch(
   () => props.note.context,
-  (newVal) => {
-    const updated = newVal || "";
+  (newContext) => {
+    const updated = newContext || "";
     if (updated !== contextDraft.value) contextDraft.value = updated;
     if (!updated.trim()) showContext.value = false;
   },
@@ -190,7 +190,7 @@ function onDrop(event) {
   margin: 1rem;
   z-index: 5;
 }
-.drop-msg {
+.drop-message {
   color: var(--accent);
   font-size: 1.05rem;
   font-weight: 500;
@@ -212,7 +212,7 @@ function onDrop(event) {
   border: 1px solid var(--danger-border);
   font-size: 0.85rem;
 }
-.error-msg {
+.error-message {
   flex: 1;
   min-width: 0;
   word-break: break-word;

@@ -40,9 +40,9 @@ function onDelete(id) {
 async function onReveal() {
   try {
     await window.api.revealNotesFolder();
-  } catch (err) {
-    editorStore.setErrorMessage(err?.message || String(err));
-    console.error("revealNotesFolder failed:", err);
+  } catch (error) {
+    editorStore.setErrorMessage(error?.message || String(error));
+    console.error("revealNotesFolder failed:", error);
   }
 }
 </script>

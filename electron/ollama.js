@@ -1,6 +1,11 @@
 import { Ollama } from "ollama";
 
-import { OLLAMA_HOST, OLLAMA_MODEL, OLLAMA_KEEP_ALIVE } from "./config.js";
+import {
+  OLLAMA_HOST,
+  OLLAMA_KEEP_ALIVE,
+  OLLAMA_MODEL,
+  OLLAMA_NUM_CTX,
+} from "./config.js";
 
 export const ollama = new Ollama({ host: OLLAMA_HOST });
 
@@ -28,7 +33,10 @@ export async function streamChat({
     model: OLLAMA_MODEL,
     messages,
     ...(tools ? { tools } : {}),
-    options,
+    // Pin num_ctx on every call (see config.js): it caps the KV-cache
+    // allocation and, because it is identical across calls, Ollama loads the
+    // model once instead of reloading to resize between passes.
+    options: { num_ctx: OLLAMA_NUM_CTX, ...options },
     keep_alive: OLLAMA_KEEP_ALIVE,
     stream: true,
   });
@@ -50,13 +58,13 @@ export async function streamChat({
         toolCalls.push(...part.tool_calls);
       }
     }
-  } catch (err) {
+  } catch (error) {
     // An external abort (cancel IPC calling ollama.abort()) surfaces here as an
     // AbortError; treat it — and our own sentinel — as a cancellation.
-    if (err instanceof FormatCancelled) throw err;
-    if (token?.cancelled || err?.name === "AbortError")
+    if (error instanceof FormatCancelled) throw error;
+    if (token?.cancelled || error?.name === "AbortError")
       throw new FormatCancelled();
-    throw err;
+    throw error;
   }
 
   return { role: "assistant", content: content.trim(), tool_calls: toolCalls };

@@ -86,11 +86,11 @@ export const useEditorStore = defineStore("editor", () => {
     unsubscribe = null;
   }
 
-  // Run Gemma over the new raw transcript, merging it into already-formatted
-  // content. The one action that coordinates both stores.
-  //   drain              — awaits any in-flight transcription so the transcript is complete.
-  //   cancelPendingSaves — cancels the container's debounced saves so a stale-context save can't race this.
-  async function runFormat({ drain, cancelPendingSaves } = {}) {
+  // Shared scaffold for the two AI mutations (format, image placement): claim
+  // the busy state, run `work(notesStore, note)`, and resolve the outcome —
+  // including translating a user-initiated cancel back to idle. Because both
+  // passes funnel through here, they serialize against each other and recording.
+  async function runAiPass(initialStage, work) {
     const notesStore = useNotesStore();
     const note = notesStore.activeNote;
     if (!note) return;
@@ -100,35 +100,59 @@ export const useEditorStore = defineStore("editor", () => {
     // can't slip past the guard above — two concurrent Gemma runs mean two model
     // loads and can swap the machine. Do not add an await before this.
     status.value = "formatting";
-    formatProgress.value = { stage: "Starting…", detail: "" };
-
-    // A just-stopped recording may still have a final chunk in flight; wait for
-    // it so the transcript Gemma sees is complete.
-    if (pendingTranscriptions.value > 0 && drain) await drain();
-
-    const full = note.markdown || "";
-    const newRaw = full.slice(sessionStartIndex.value).trim();
-    const previouslyFormatted = full
-      .slice(0, sessionStartIndex.value)
-      .trimEnd();
-    const context = (note.context || "").trim();
-
-    if (!newRaw) {
-      status.value = "idle";
-      formatProgress.value = null;
-      return;
-    }
-
-    // Re-send only a bounded recent slice; the head stays verbatim and is
-    // stitched back after Gemma returns, keeping prompt size (and memory) flat.
-    const { head: formattedHead, tail: formattedTail } =
-      splitFormatContext(previouslyFormatted);
+    formatProgress.value = { stage: initialStage, detail: "" };
 
     try {
+      await work(notesStore, note);
+      status.value = "idle";
+    } catch (error) {
+      // A user-initiated cancel is not an error — leave the note untouched and
+      // return to idle quietly. Everything else surfaces as an error.
+      if ((error.message || "").includes("FORMAT_CANCELLED")) {
+        status.value = "idle";
+      } else {
+        status.value = "error";
+        errorMessage.value = error.message || String(error);
+      }
+    } finally {
+      formatProgress.value = null;
+    }
+  }
+
+  // Persist an AI-updated note and advance the session marker so the next
+  // format pass only sees speech recorded after this point.
+  async function persistAiUpdate(notesStore) {
+    await notesStore.saveActiveNote();
+    await notesStore.refreshNotes();
+    sessionStartIndex.value = notesStore.activeNote.markdown.length;
+  }
+
+  // Run Gemma over the new raw transcript, merging it into already-formatted
+  // content. The one action that coordinates both stores.
+  //   drain              — awaits any in-flight transcription so the transcript is complete.
+  //   cancelPendingSaves — cancels the container's debounced saves so a stale-context save can't race this.
+  async function runFormat({ drain, cancelPendingSaves } = {}) {
+    await runAiPass("Starting…", async (notesStore, note) => {
+      // A just-stopped recording may still have a final chunk in flight; wait
+      // for it so the transcript Gemma sees is complete.
+      if (pendingTranscriptions.value > 0 && drain) await drain();
+
+      const full = note.markdown || "";
+      const newRaw = full.slice(sessionStartIndex.value).trim();
+      if (!newRaw) return;
+
+      // Re-send only a bounded recent slice; the head stays verbatim and is
+      // stitched back after Gemma returns, keeping prompt size (and memory) flat.
+      const previouslyFormatted = full
+        .slice(0, sessionStartIndex.value)
+        .trimEnd();
+      const { head: formattedHead, tail: formattedTail } =
+        splitFormatContext(previouslyFormatted);
+
       const updated = await window.api.formatNote({
         transcript: newRaw,
         existing: formattedTail,
-        context,
+        context: (note.context || "").trim(),
       });
       snapshotForUndo(note.id, full);
       notesStore.setMarkdown(
@@ -138,41 +162,18 @@ export const useEditorStore = defineStore("editor", () => {
       // run starts fresh.
       notesStore.setContext("");
       cancelPendingSaves?.();
-      await notesStore.saveActiveNote();
-      await notesStore.refreshNotes();
-      sessionStartIndex.value = notesStore.activeNote.markdown.length;
-      status.value = "idle";
-    } catch (err) {
-      // A user-initiated cancel is not an error — leave the note untouched and
-      // return to idle quietly. Everything else surfaces as an error.
-      if ((err.message || "").includes("FORMAT_CANCELLED")) {
-        status.value = "idle";
-      } else {
-        status.value = "error";
-        errorMessage.value = err.message || String(err);
-      }
-    } finally {
-      formatProgress.value = null;
-    }
+      await persistAiUpdate(notesStore);
+    });
   }
 
   // Splice the pending images into the note without reformatting the prose (the
-  // main process captions each and picks where it fits). Reuses the formatting
-  // status/progress/cancel plumbing, so it serializes against record + format.
+  // main process captions each and picks where it fits).
   async function placeImages() {
-    const notesStore = useNotesStore();
-    const note = notesStore.activeNote;
-    if (!note) return;
-    if (status.value !== "idle") return;
-    const images = notesStore.pendingImages.slice();
+    const images = useNotesStore().pendingImages.slice();
     if (images.length === 0) return;
 
-    // Claim the busy state synchronously, BEFORE any await (see runFormat).
-    status.value = "formatting";
-    formatProgress.value = { stage: "Looking at images…", detail: "" };
-
-    const markdown = note.markdown || "";
-    try {
+    await runAiPass("Looking at images…", async (notesStore, note) => {
+      const markdown = note.markdown || "";
       const updated = await window.api.placeImages({
         markdown,
         images: images.map(({ filename, url, path, mime }) => ({
@@ -184,21 +185,9 @@ export const useEditorStore = defineStore("editor", () => {
       });
       snapshotForUndo(note.id, markdown);
       notesStore.setMarkdown(updated);
-      await notesStore.saveActiveNote();
-      await notesStore.refreshNotes();
-      sessionStartIndex.value = notesStore.activeNote.markdown.length;
+      await persistAiUpdate(notesStore);
       notesStore.clearPendingImages();
-      status.value = "idle";
-    } catch (err) {
-      if ((err.message || "").includes("FORMAT_CANCELLED")) {
-        status.value = "idle";
-      } else {
-        status.value = "error";
-        errorMessage.value = err.message || String(err);
-      }
-    } finally {
-      formatProgress.value = null;
-    }
+    });
   }
 
   // Ask the main process to abort the in-progress format or placement run.

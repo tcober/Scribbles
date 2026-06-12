@@ -11,72 +11,78 @@ import crypto from "node:crypto";
 import { CARRYOVER_CHARS, WHISPER_PROMPT } from "../config.js";
 import { ensureWhisperModel, whisperBin } from "../whisper.js";
 
-const execFileP = promisify(execFile);
+const execFileAsync = promisify(execFile);
 
 export function registerTranscribeHandler() {
   // `carryover` is the tail of the transcript so far; feeding it back keeps word
   // boundaries and proper nouns consistent across the per-chunk whisper calls.
-  ipcMain.handle("audio:transcribe", async (_event, wavBuffer, opts = {}) => {
-    const modelFile = await ensureWhisperModel();
-    const binPath = whisperBin();
+  ipcMain.handle(
+    "audio:transcribe",
+    async (_event, wavBuffer, options = {}) => {
+      const modelFile = await ensureWhisperModel();
+      const binPath = whisperBin();
 
-    const base = join(
-      os.tmpdir(),
-      `scribbles-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
-    );
-    const wavPath = `${base}.wav`;
-    const txtPath = `${base}.txt`;
-    await fs.writeFile(wavPath, Buffer.from(wavBuffer));
-
-    // Build the initial prompt: a short domain hint plus the most recent
-    // transcript. whisper keeps the prompt's trailing tokens, so order matters —
-    // hint first, recent speech last.
-    const carryover =
-      typeof opts.carryover === "string"
-        ? opts.carryover.replace(/\s+/g, " ").trim().slice(-CARRYOVER_CHARS)
-        : "";
-    const prompt = carryover
-      ? `${WHISPER_PROMPT} ${carryover}`
-      : WHISPER_PROMPT;
-
-    try {
-      await execFileP(
-        binPath,
-        [
-          "-m",
-          modelFile,
-          "-f",
-          wavPath,
-          "-otxt",
-          "-of",
-          base,
-          "-nt",
-          "-np",
-          "-l",
-          "en",
-          "--prompt",
-          prompt,
-        ],
-        { maxBuffer: 32 * 1024 * 1024 },
+      const base = join(
+        os.tmpdir(),
+        `scribbles-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`,
       );
+      const wavPath = `${base}.wav`;
+      const txtPath = `${base}.txt`;
+      await fs.writeFile(wavPath, Buffer.from(wavBuffer));
 
-      const text = await fs.readFile(txtPath, "utf8").catch(() => "");
-      return text.trim();
-    } catch (err) {
-      if (err.code === "ENOENT") {
-        throw new Error(
-          `Could not find the whisper-cli binary at "${binPath}". In development, ` +
-            `run "npm run vendor:whisper"; otherwise install it with "brew install whisper-cpp".`,
-          { cause: err },
+      // Build the initial prompt: a short domain hint plus the most recent
+      // transcript. whisper keeps the prompt's trailing tokens, so order matters —
+      // hint first, recent speech last.
+      const carryover =
+        typeof options.carryover === "string"
+          ? options.carryover
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(-CARRYOVER_CHARS)
+          : "";
+      const prompt = carryover
+        ? `${WHISPER_PROMPT} ${carryover}`
+        : WHISPER_PROMPT;
+
+      try {
+        await execFileAsync(
+          binPath,
+          [
+            "-m",
+            modelFile,
+            "-f",
+            wavPath,
+            "-otxt",
+            "-of",
+            base,
+            "-nt",
+            "-np",
+            "-l",
+            "en",
+            "--prompt",
+            prompt,
+          ],
+          { maxBuffer: 32 * 1024 * 1024 },
         );
+
+        const text = await fs.readFile(txtPath, "utf8").catch(() => "");
+        return text.trim();
+      } catch (error) {
+        if (error.code === "ENOENT") {
+          throw new Error(
+            `Could not find the whisper-cli binary at "${binPath}". In development, ` +
+              `run "npm run vendor:whisper"; otherwise install it with "brew install whisper-cpp".`,
+            { cause: error },
+          );
+        }
+        throw new Error(
+          `whisper-cli failed: ${error.stderr?.toString() || error.message}`,
+          { cause: error },
+        );
+      } finally {
+        await fs.unlink(wavPath).catch(() => {});
+        await fs.unlink(txtPath).catch(() => {});
       }
-      throw new Error(
-        `whisper-cli failed: ${err.stderr?.toString() || err.message}`,
-        { cause: err },
-      );
-    } finally {
-      await fs.unlink(wavPath).catch(() => {});
-      await fs.unlink(txtPath).catch(() => {});
-    }
-  });
+    },
+  );
 }

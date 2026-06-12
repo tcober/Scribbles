@@ -71,10 +71,10 @@ export function registerNoteHandlers() {
     assertSafeId(id);
     try {
       await fs.unlink(join(notesDir(), `${id}.json`));
-    } catch (err) {
+    } catch (error) {
       // A missing file is fine (already gone); surface anything else.
-      if (err.code !== "ENOENT") {
-        console.warn(`notes:delete failed for ${id}:`, err);
+      if (error.code !== "ENOENT") {
+        console.warn(`notes:delete failed for ${id}:`, error);
       }
     }
     return true;
@@ -84,8 +84,8 @@ export function registerNoteHandlers() {
     await ensureDirs();
     const dir = notesDir();
     // shell.openPath resolves to a string: empty on success, error msg on failure.
-    const err = await shell.openPath(dir);
-    if (err) throw new Error(`Could not open ${dir}: ${err}`);
+    const failure = await shell.openPath(dir);
+    if (failure) throw new Error(`Could not open ${dir}: ${failure}`);
     return dir;
   });
 }

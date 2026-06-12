@@ -26,8 +26,8 @@ const draft = ref(props.title);
 // leave in-progress typing alone.
 watch(
   () => props.title,
-  (val) => {
-    if (val !== draft.value) draft.value = val;
+  (newTitle) => {
+    if (newTitle !== draft.value) draft.value = newTitle;
   },
 );
 

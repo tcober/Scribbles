@@ -60,8 +60,8 @@ app.whenReady().then(async () => {
   if (process.platform === "darwin") {
     try {
       await systemPreferences.askForMediaAccess("microphone");
-    } catch (err) {
-      console.warn("Microphone access request failed:", err);
+    } catch (error) {
+      console.warn("Microphone access request failed:", error);
     }
   }
 

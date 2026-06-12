@@ -67,16 +67,16 @@ export async function preSearchFromContext(context) {
   }
   if (!queries.length) return [];
 
-  const out = [];
+  const searches = [];
   for (const query of queries) {
     try {
       const hits = await webSearch(query, 4);
-      out.push({ query, hits });
-    } catch (err) {
-      out.push({ query, error: err.message });
+      searches.push({ query, hits });
+    } catch (error) {
+      searches.push({ query, error: error.message });
     }
   }
-  return out;
+  return searches;
 }
 
 export function formatPreSearchBlock(searches) {
@@ -129,14 +129,14 @@ export async function executeToolCall(name, rawArgs) {
           `[${index + 1}] ${hit.title}\nURL: ${hit.url}\n${hit.snippet}`,
       )
       .join("\n\n");
-  } catch (err) {
-    return `web_search("${query}") failed: ${err.message}`;
+  } catch (error) {
+    return `web_search("${query}") failed: ${error.message}`;
   }
 }
 
 async function webSearch(query, maxResults = 5) {
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -144,8 +144,9 @@ async function webSearch(query, maxResults = 5) {
       "Accept-Language": "en-US,en;q=0.5",
     },
   });
-  if (!res.ok) throw new Error(`DuckDuckGo returned HTTP ${res.status}`);
-  const html = await res.text();
+  if (!response.ok)
+    throw new Error(`DuckDuckGo returned HTTP ${response.status}`);
+  const html = await response.text();
 
   const results = [];
   const resultPattern =
